@@ -227,14 +227,26 @@ function loadCols() {
 
 /* ============================================================== component */
 export default function Tickets() {
-  useAuth();
+  const { user } = useAuth();
+  const isEngineer = user?.role === 'engineer';
+
+  // Engineers only see "their" tickets — server-side row-level scoping enforces
+  // it, but we also tighten the UI: drop "All" / "Unassigned" tabs, default to
+  // "My open", and hide the create button (engineers don't open new tickets;
+  // customers / managers do).
+  const savedViews = isEngineer
+    ? [
+        { id: 'mine_open', label: 'My open tickets'   },
+        { id: 'closed',    label: 'My closed tickets' },
+      ]
+    : SAVED_VIEWS;
 
   const [data, setData]   = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage]   = useState(1);
   const [search, setSearch] = useState('');
 
-  const [view, setView]     = useState('all');
+  const [view, setView]     = useState(isEngineer ? 'mine_open' : 'all');
   const [layout, setLayout] = useState('list');
 
   const [pipelines, setPipelines] = useState([]);
@@ -448,17 +460,19 @@ export default function Tickets() {
           </h1>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{recordsLabel}</p>
         </div>
-        <button
-          onClick={() => setDrawer(true)}
-          className="px-4 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm transition"
-        >
-          + Create ticket
-        </button>
+        {!isEngineer && (
+          <button
+            onClick={() => setDrawer(true)}
+            className="px-4 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-sm transition"
+          >
+            + Create ticket
+          </button>
+        )}
       </div>
 
       {/* Saved-view tabs */}
       <div className="border-b border-gray-200 dark:border-slate-700 flex items-center gap-1">
-        {SAVED_VIEWS.map((v) => (
+        {savedViews.map((v) => (
           <button
             key={v.id}
             onClick={() => { setView(v.id); setPage(1); }}
@@ -468,7 +482,7 @@ export default function Tickets() {
                 : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'}`}
           >
             {v.label}
-            {view === v.id && v.id !== 'all' && (
+            {view === v.id && v.id !== 'all' && !isEngineer && (
               <span
                 role="button"
                 aria-label="Reset view"
@@ -500,10 +514,12 @@ export default function Tickets() {
 
         <FilterChip label="All pipelines" value={pipelineId} onChange={(v) => { setPipelineId(v); setPage(1); }}
           options={[{ value: '', label: 'All pipelines' }, ...pipelines.map(p => ({ value: p.id, label: p.name }))]} />
-        <FilterChip label="Ticket owner" value={ownerId} onChange={(v) => { setOwnerId(v); setPage(1); }}
-          options={[{ value: '', label: 'Any owner' },
-            ...users.filter(u => ['engineer','manager','admin'].includes(u.role))
-                   .map(u => ({ value: u.id, label: u.name }))]} />
+        {!isEngineer && (
+          <FilterChip label="Ticket owner" value={ownerId} onChange={(v) => { setOwnerId(v); setPage(1); }}
+            options={[{ value: '', label: 'Any owner' },
+              ...users.filter(u => ['engineer','manager','admin'].includes(u.role))
+                     .map(u => ({ value: u.id, label: u.name }))]} />
+        )}
         <FilterChip label="Create date" value={createdRange} onChange={(v) => { setCreatedRange(v); setPage(1); }}
           options={DATE_RANGE_OPTIONS} />
         <FilterChip label="Last activity date" value={updatedRange} onChange={(v) => { setUpdatedRange(v); setPage(1); }}

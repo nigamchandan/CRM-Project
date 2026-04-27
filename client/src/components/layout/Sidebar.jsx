@@ -2,14 +2,19 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Icon from '../ui/Icon.jsx';
 
+// Each nav entry can declare:
+//   roles:   whitelist (only these roles see it)
+//   hideFor: blacklist (everyone except these roles see it)
+// Site/support engineers live entirely inside Tickets + Tasks, so the
+// sales-side modules (Contacts, Leads, Deals, Reports) are hidden for them.
 const NAV = [
   { to: '/',          label: 'Dashboard',  icon: 'home' },
-  { to: '/contacts',  label: 'Contacts',   icon: 'users' },
-  { to: '/leads',     label: 'Leads',      icon: 'target' },
-  { to: '/deals',     label: 'Deals',      icon: 'briefcase' },
+  { to: '/contacts',  label: 'Contacts',   icon: 'users',      hideFor: ['engineer'] },
+  { to: '/leads',     label: 'Leads',      icon: 'target',     hideFor: ['engineer'] },
+  { to: '/deals',     label: 'Deals',      icon: 'briefcase',  hideFor: ['engineer'] },
   { to: '/tickets',   label: 'Tickets',    icon: 'ticket' },
   { to: '/tasks',     label: 'Tasks',      icon: 'checkCircle' },
-  { to: '/reports',   label: 'Reports',    icon: 'chartBar' },
+  { to: '/reports',   label: 'Reports',    icon: 'chartBar',   hideFor: ['engineer'] },
   { to: '/users',     label: 'Users',      icon: 'userCircle', roles: ['admin','manager'] },
   { to: '/settings',  label: 'Settings',   icon: 'cog',        roles: ['admin'] },
   { to: '/logs',      label: 'Audit Logs', icon: 'document',   roles: ['admin','manager'] },
@@ -17,7 +22,12 @@ const NAV = [
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const { user } = useAuth();
-  const links = NAV.filter(n => !n.roles || n.roles.includes(user?.role));
+  const role = user?.role;
+  const links = NAV.filter(n => {
+    if (n.roles && !n.roles.includes(role)) return false;
+    if (n.hideFor && n.hideFor.includes(role)) return false;
+    return true;
+  });
 
   return (
     <>

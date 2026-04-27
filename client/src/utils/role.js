@@ -1,12 +1,13 @@
 // ---------------------------------------------------------------------------
 // Role / dashboard-kind detection
 // ---------------------------------------------------------------------------
-// The backend stores a single `role` string on each user (admin | manager | user).
+// The backend stores a single `role` string on each user
+//   (admin | manager | engineer | user).
 // This module maps that to a "dashboard kind":
 //
-//   admin   → AdminDashboard   (full system overview)
-//   sales   → SalesDashboard   (personal pipeline + tasks)
-//   support → SupportDashboard (ticket queue + SLA)
+//   admin    → AdminDashboard   (full system overview)
+//   sales    → SalesDashboard   (personal pipeline + tasks)
+//   support  → SupportDashboard (ticket queue + SLA)
 //
 // Admins/managers can preview a different dashboard via:
 //   - URL query param   ?view=sales      (one-shot)
@@ -16,9 +17,10 @@
 export const DASHBOARD_KINDS = ['admin', 'sales', 'support'];
 
 const ROLE_TO_KIND = {
-  admin:   'admin',
-  manager: 'admin',
-  user:    'sales', // default for non-privileged users
+  admin:    'admin',
+  manager:  'admin',
+  engineer: 'support', // site/support engineers land on the SupportDashboard
+  user:     'sales',   // default for non-privileged users (sales)
 };
 
 export function getDashboardKind(user) {

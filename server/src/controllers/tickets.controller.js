@@ -8,6 +8,55 @@ const { emitBroadcast } = require('../config/socket');
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const parseBool  = (v) => (v === undefined ? undefined : v === 'true' || v === true);
 
+/**
+ * Resolve a ticket the current user is allowed to see, or send 404.
+ * Returns the ticket on success, or `null` after responding (caller should
+ * `return` immediately).
+ *
+ * We deliberately use 404 instead of 403 to avoid leaking the existence of
+ * tickets the user has no business knowing about (HubSpot / GitHub pattern).
+ */
+async function resolveAccessible(req, res) {
+  const t = await service.getById(req.params.id, req.user);
+  if (!t) {
+    res.status(404).json({ message: 'Ticket not found' });
+    return null;
+  }
+  return t;
+}
+
+/**
+ * Strip fields from a ticket-update body that the current user isn't allowed
+ * to write.
+ *
+ *   admin    → can write anything
+ *   manager  → cannot edit SLA fields (admin-config concern)
+ *   engineer → can only edit subject/description/priority/source/reporter info
+ *              on their own tickets. No reassignment, no pipeline jumps,
+ *              no SLA tampering. Stage moves go through PATCH /:id/stage.
+ *   user     → same restrictions as engineer
+ */
+function sanitizeUpdateBody(role, body = {}) {
+  if (role === 'admin') return body;
+
+  const stripped = { ...body };
+  // SLA is admin-only.
+  delete stripped.sla_due_at;
+  delete stripped.recomputeSla;
+
+  if (role === 'manager') return stripped;
+
+  // engineer / user — drop everything that lets them mutate ownership / routing.
+  for (const key of [
+    'pipeline_id', 'pipeline_stage_id',
+    'assigned_engineer_id', 'reporting_manager_id', 'project_manager_id',
+    'team_id', 'location_id', 'project_id',
+    'contact_id',
+  ]) delete stripped[key];
+
+  return stripped;
+}
+
 /* ----------------------------------------------------------- READ endpoints */
 
 exports.list = async (req, res, next) => {
@@ -26,7 +75,7 @@ exports.list = async (req, res, next) => {
 };
 exports.getOne = async (req, res, next) => {
   try {
-    const r = await service.getById(req.params.id);
+    const r = await service.getById(req.params.id, req.user);
     if (!r) return res.status(404).json({ message: 'Ticket not found' });
     res.json(r);
   } catch (e) { next(e); }
@@ -71,7 +120,9 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const r = await service.update(req.params.id, req.body);
+    if (!(await resolveAccessible(req, res))) return;
+    const safeBody = sanitizeUpdateBody(req.user.role, req.body);
+    const r = await service.update(req.params.id, safeBody);
     if (!r) return res.status(404).json({ message: 'Ticket not found' });
     await writeLog({ userId: req.user.id, action: 'ticket.update', entity: 'tickets', entityId: r.id });
     emitBroadcast('ticket:update', r);
@@ -88,7 +139,8 @@ exports.setStage = async (req, res, next) => {
   try {
     const stageId = req.body.pipeline_stage_id || req.body.stage_id;
     if (!stageId) return res.status(400).json({ message: 'pipeline_stage_id is required' });
-    const before = await service.getById(req.params.id);
+    const before = await resolveAccessible(req, res);
+    if (!before) return;
     const r = await service.setStage(req.params.id, stageId);
     if (!r) return res.status(404).json({ message: 'Ticket or stage not found' });
     await writeLog({ userId: req.user.id, action: 'ticket.stage', entity: 'tickets', entityId: r.id, meta: {
@@ -109,7 +161,8 @@ exports.setStage = async (req, res, next) => {
 
 exports.setStatus = async (req, res, next) => {
   try {
-    const before = await service.getById(req.params.id);
+    const before = await resolveAccessible(req, res);
+    if (!before) return;
     const r = await service.setStatus(req.params.id, req.body.status);
     await writeLog({ userId: req.user.id, action: 'ticket.status', entity: 'tickets', entityId: r.id, meta: { status: r.status } });
     emitBroadcast('ticket:update', r);
@@ -128,6 +181,7 @@ exports.setStatus = async (req, res, next) => {
 
 exports.assign = async (req, res, next) => {
   try {
+    if (!(await resolveAccessible(req, res))) return;
     const r = await service.assign(req.params.id, req.body || {});
     await writeLog({ userId: req.user.id, action: 'ticket.assign', entity: 'tickets', entityId: r.id, meta: {
       engineer: r.assigned_engineer_id, manager: r.reporting_manager_id,
@@ -148,6 +202,7 @@ exports.assign = async (req, res, next) => {
 
 exports.escalate = async (req, res, next) => {
   try {
+    if (!(await resolveAccessible(req, res))) return;
     const r = await service.escalate(req.params.id);
     await writeLog({ userId: req.user.id, action: 'ticket.escalate', entity: 'tickets', entityId: r.id, meta: { level: r.escalation_level } });
     emitBroadcast('ticket:update', r);
@@ -167,6 +222,9 @@ exports.escalate = async (req, res, next) => {
 
 exports.remove = async (req, res, next) => {
   try {
+    // Belt-and-suspenders: route layer requires admin, but if it ever opens up
+    // we still want to refuse on tickets the caller can't see.
+    if (!(await resolveAccessible(req, res))) return;
     await service.remove(req.params.id);
     await writeLog({ userId: req.user.id, action: 'ticket.delete', entity: 'tickets', entityId: req.params.id });
     emitBroadcast('ticket:delete', { id: Number(req.params.id) });
@@ -180,6 +238,7 @@ exports.remove = async (req, res, next) => {
  */
 exports.listActivity = async (req, res, next) => {
   try {
+    if (!(await resolveAccessible(req, res))) return;
     const result = await logsService.list({
       entity: 'tickets',
       entity_id: req.params.id,
@@ -193,10 +252,14 @@ exports.listActivity = async (req, res, next) => {
 /* ------------------------------------------------------------ COMMENTS */
 
 exports.listComments = async (req, res, next) => {
-  try { res.json(await service.listComments(req.params.id)); } catch (e) { next(e); }
+  try {
+    if (!(await resolveAccessible(req, res))) return;
+    res.json(await service.listComments(req.params.id));
+  } catch (e) { next(e); }
 };
 exports.addComment = async (req, res, next) => {
   try {
+    if (!(await resolveAccessible(req, res))) return;
     const attachments = (req.files || []).map(f => ({
       filename: f.filename, original_name: f.originalname, size: f.size, mimetype: f.mimetype,
       url: `/uploads/${f.filename}`,

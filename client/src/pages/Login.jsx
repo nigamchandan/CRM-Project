@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext.jsx';
 import AuthShell from '../components/auth/AuthShell.jsx';
 
 const DEMO_ACCOUNTS = [
-  { role: 'Admin',   email: 'admin@crm.test',   password: 'admin123',   color: 'bg-brand-600' },
-  { role: 'Manager', email: 'manager@crm.test', password: 'manager123', color: 'bg-emerald-600' },
-  { role: 'Sales',   email: 'sales@crm.test',   password: 'sales123',   color: 'bg-amber-600' },
+  { role: 'Admin',    email: 'admin@crm.test',   password: 'admin123',   color: 'bg-brand-600' },
+  { role: 'Manager',  email: 'manager@crm.test', password: 'manager123', color: 'bg-emerald-600' },
+  { role: 'Engineer', email: 'nigam@crm.test',   password: 'nigam123',   color: 'bg-sky-600' },
+  { role: 'Sales',    email: 'sales@crm.test',   password: 'sales123',   color: 'bg-amber-600' },
 ];
 
 export default function Login() {
@@ -116,7 +117,7 @@ export default function Login() {
         <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {DEMO_ACCOUNTS.map((acc) => (
           <button
             key={acc.role}

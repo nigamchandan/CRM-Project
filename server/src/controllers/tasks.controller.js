@@ -3,8 +3,22 @@ const notifications = require('../services/notifications.service');
 const { writeLog } = require('../middleware/audit');
 const { emitBroadcast } = require('../config/socket');
 
-exports.list = async (req, res, next) => { try { res.json(await service.list({ ...req.query, currentUserId: req.user.id })); } catch (e) { next(e); } };
-exports.getOne = async (req, res, next) => { try { res.json(await service.getById(req.params.id)); } catch (e) { next(e); } };
+exports.list = async (req, res, next) => {
+  try {
+    res.json(await service.list({
+      ...req.query,
+      currentUserId: req.user.id,
+      currentUser:   req.user,
+    }));
+  } catch (e) { next(e); }
+};
+exports.getOne = async (req, res, next) => {
+  try {
+    const r = await service.getById(req.params.id, req.user);
+    if (!r) return res.status(404).json({ message: 'Task not found' });
+    res.json(r);
+  } catch (e) { next(e); }
+};
 
 exports.create = async (req, res, next) => {
   try {
@@ -23,6 +37,8 @@ exports.create = async (req, res, next) => {
 };
 exports.update = async (req, res, next) => {
   try {
+    const existing = await service.getById(req.params.id, req.user);
+    if (!existing) return res.status(404).json({ message: 'Task not found' });
     const r = await service.update(req.params.id, req.body);
     await writeLog({ userId: req.user.id, action: 'task.update', entity: 'tasks', entityId: r.id });
     emitBroadcast('task:update', { kind: 'update', task: r });
@@ -31,6 +47,8 @@ exports.update = async (req, res, next) => {
 };
 exports.complete = async (req, res, next) => {
   try {
+    const existing = await service.getById(req.params.id, req.user);
+    if (!existing) return res.status(404).json({ message: 'Task not found' });
     const r = await service.complete(req.params.id, req.body.completed !== false);
     await writeLog({ userId: req.user.id, action: 'task.complete', entity: 'tasks', entityId: r.id, meta: { completed: r.status === 'completed' } });
     emitBroadcast('task:update', { kind: 'complete', task: r });
@@ -39,6 +57,8 @@ exports.complete = async (req, res, next) => {
 };
 exports.remove = async (req, res, next) => {
   try {
+    const existing = await service.getById(req.params.id, req.user);
+    if (!existing) return res.status(404).json({ message: 'Task not found' });
     await service.remove(req.params.id);
     await writeLog({ userId: req.user.id, action: 'task.delete', entity: 'tasks', entityId: req.params.id });
     emitBroadcast('task:update', { kind: 'delete', task: { id: Number(req.params.id) } });

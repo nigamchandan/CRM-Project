@@ -62,6 +62,65 @@ const BASE = `
 
 /* ---------- helpers ---------- */
 
+/**
+ * Role-based row-level scoping for ticket reads.
+ *
+ * Returns a SQL fragment (already prefixed with " AND (...)") to merge into a
+ * WHERE clause, after pushing any required values onto `params`.
+ *
+ *   admin    → no extra filter (full org access)
+ *   manager  → tickets in their team OR tickets they're personally attached to
+ *   engineer → only tickets they're personally attached to
+ *   user     → same strict scope as engineer (sales rarely touches tickets;
+ *              when they do, it's because they raised them for a customer)
+ *
+ * Pass `null` / no `currentUser` to skip scoping (used for internal post-mutation
+ * reloads where access has already been verified by the caller).
+ */
+function roleScopeWhere(currentUser, params) {
+  if (!currentUser || currentUser.role === 'admin') return '';
+
+  const role = currentUser.role;
+  const meId = Number(currentUser.id);
+
+  if (role === 'manager') {
+    params.push(meId);
+    const me = `$${params.length}`;
+    if (currentUser.team_id) {
+      params.push(Number(currentUser.team_id));
+      const team = `$${params.length}`;
+      return ` AND (
+           t.team_id              = ${team}
+        OR t.assigned_engineer_id = ${me}
+        OR t.assigned_to          = ${me}
+        OR t.reporting_manager_id = ${me}
+        OR t.project_manager_id   = ${me}
+        OR t.created_by           = ${me}
+      )`;
+    }
+    // Manager without a team — fall back to "personally attached".
+    return ` AND (
+         t.assigned_engineer_id = ${me}
+      OR t.assigned_to          = ${me}
+      OR t.reporting_manager_id = ${me}
+      OR t.project_manager_id   = ${me}
+      OR t.created_by           = ${me}
+    )`;
+  }
+
+  // engineer + user (sales / general) → strict
+  params.push(meId);
+  const me = `$${params.length}`;
+  return ` AND (
+       t.assigned_engineer_id = ${me}
+    OR t.assigned_to          = ${me}
+    OR t.reporting_manager_id = ${me}
+    OR t.project_manager_id   = ${me}
+    OR t.created_by           = ${me}
+  )`;
+}
+exports.roleScopeWhere = roleScopeWhere;
+
 async function resolveDefaultPipelineAndStage() {
   const { rows } = await query(
     `SELECT p.id AS pipeline_id, s.id AS stage_id
@@ -203,6 +262,9 @@ exports.list = async ({
   if (escalated === true)      { where += ` AND t.escalation_level > 0`; }
   if (has_sla_breach === true) { where += ` AND t.sla_due_at < NOW() AND t.status NOT IN ('closed','resolved')`; }
 
+  // Role-based row-level scope — non-admins never see tickets outside their bubble.
+  where += roleScopeWhere(currentUser, params);
+
   // "My open tickets" — match any relationship the current user has with the ticket:
   // assigned engineer, legacy assigned_to, reporting manager, ticket-level project manager,
   // or the creator. This makes the saved-view useful for non-engineer roles too (admin/manager/PM).
@@ -243,8 +305,18 @@ exports.list = async ({
   return { data: rows, total: total.rows[0].c, page: Number(page), limit: Number(limit) };
 };
 
-exports.getById = async (id) => {
-  const { rows } = await query(`${BASE} WHERE t.id = $1`, [id]);
+/**
+ * Fetch a single ticket. When `currentUser` is provided the read is scoped
+ * by role — a manager outside the team gets `null` (treated as 404 by the
+ * controller), an engineer who isn't attached to the ticket gets `null`.
+ *
+ * Pass `null` (or omit) to bypass scoping — used for post-mutation reloads
+ * inside this file after the caller has already verified access.
+ */
+exports.getById = async (id, currentUser = null) => {
+  const params = [id];
+  const scope  = roleScopeWhere(currentUser, params);
+  const { rows } = await query(`${BASE} WHERE t.id = $1${scope}`, params);
   return rows[0];
 };
 

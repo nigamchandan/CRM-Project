@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Modal from '../components/ui/Modal.jsx';
 
-const ROLES = ['admin','manager','user'];
+const ROLES = ['admin','manager','engineer','user'];
 const EMPTY = { name:'', email:'', password:'', role:'user' };
 
 export default function Users() {
