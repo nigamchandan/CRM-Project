@@ -40,8 +40,17 @@ export function AuthProvider({ children }) {
     disconnectSocket();
   };
 
+  /** Re-fetch /auth/me and replace the cached user (after a profile edit). */
+  const refresh = async () => {
+    try {
+      const fresh = await authService.me();
+      setUser(fresh);
+      return fresh;
+    } catch { /* token may have expired — leave existing state */ }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, refresh }}>
       {children}
     </AuthContext.Provider>
   );

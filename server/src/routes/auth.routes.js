@@ -25,4 +25,26 @@ router.post(
 router.get('/me', auth, ctrl.me);
 router.post('/logout', auth, ctrl.logout);
 
+router.patch(
+  '/me',
+  auth,
+  [
+    body('name').optional().isString().trim().isLength({ min: 1, max: 150 }),
+    body('email').optional().isEmail(),
+  ],
+  validate,
+  ctrl.updateMe,
+);
+
+router.post(
+  '/me/password',
+  auth,
+  [
+    body('current_password').isString().notEmpty(),
+    body('new_password').isLength({ min: 6 }),
+  ],
+  validate,
+  ctrl.changeMyPassword,
+);
+
 module.exports = router;

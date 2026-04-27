@@ -79,6 +79,12 @@ export default function Topbar({ onMenu }) {
             </div>
             <button
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-slate-200 flex items-center gap-2"
+              onClick={() => { setMenuOpen(false); navigate('/profile'); }}
+            >
+              <Icon name="userCircle" className="w-4 h-4" /> My Profile
+            </button>
+            <button
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-slate-200 flex items-center gap-2"
               onClick={() => { setMenuOpen(false); navigate('/settings'); }}
             >
               <Icon name="cog" className="w-4 h-4" /> Settings

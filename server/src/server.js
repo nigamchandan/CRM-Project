@@ -3,6 +3,7 @@ const http = require('http');
 const app = require('./app');
 const { initSocket } = require('./config/socket');
 const { pool } = require('./config/db');
+const retentionJob = require('./jobs/retention.job');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -16,6 +17,8 @@ initSocket(server);
   } catch (err) {
     console.error('[db] connection failed:', err.message);
   }
+
+  retentionJob.start();
 
   server.listen(PORT, () => {
     console.log(`[server] running on http://localhost:${PORT}`);

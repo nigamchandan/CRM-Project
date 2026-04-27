@@ -53,3 +53,43 @@ exports.getById = async (id) => {
   const { rows } = await query('SELECT * FROM users WHERE id = $1', [id]);
   return sanitize(rows[0]);
 };
+
+/**
+ *  Self-service profile update — only the fields a user is allowed to change
+ *  about themselves. Role / is_active are intentionally NOT here (admin-only).
+ */
+exports.updateProfile = async (id, { name, email }) => {
+  if (email) {
+    const dupe = await query('SELECT id FROM users WHERE email = $1 AND id <> $2', [email, id]);
+    if (dupe.rows.length) {
+      const err = new Error('That email is already in use'); err.status = 409; throw err;
+    }
+  }
+  const { rows } = await query(
+    `UPDATE users SET
+       name  = COALESCE($2, name),
+       email = COALESCE($3, email),
+       updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, name || null, email || null],
+  );
+  return sanitize(rows[0]);
+};
+
+/**
+ *  Change own password. Verifies `current_password` first (so a stolen
+ *  session token can't silently rotate the password without the secret).
+ */
+exports.changePassword = async (id, { current_password, new_password }) => {
+  if (!new_password || String(new_password).length < 6) {
+    const err = new Error('New password must be at least 6 characters'); err.status = 400; throw err;
+  }
+  const { rows } = await query('SELECT password FROM users WHERE id = $1', [id]);
+  if (!rows.length) { const err = new Error('User not found'); err.status = 404; throw err; }
+  const ok = await bcrypt.compare(String(current_password || ''), rows[0].password);
+  if (!ok) { const err = new Error('Current password is incorrect'); err.status = 401; throw err; }
+  const hash = await bcrypt.hash(new_password, 10);
+  await query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hash, id]);
+  return { ok: true };
+};

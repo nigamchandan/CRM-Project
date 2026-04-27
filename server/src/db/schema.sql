@@ -337,6 +337,8 @@ CREATE TABLE IF NOT EXISTS logs (
   meta       JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_logs_user   ON logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_logs_action ON logs(action);
-CREATE INDEX IF NOT EXISTS idx_logs_entity ON logs(entity, entity_id);
+CREATE INDEX IF NOT EXISTS idx_logs_user        ON logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_logs_action      ON logs(action);
+CREATE INDEX IF NOT EXISTS idx_logs_entity      ON logs(entity, entity_id);
+-- created_at index powers the retention sweep AND every "recent / range" filter.
+CREATE INDEX IF NOT EXISTS idx_logs_created_at  ON logs(created_at DESC);

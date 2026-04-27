@@ -13,6 +13,7 @@ import Tasks from './pages/Tasks.jsx';
 import Users from './pages/Users.jsx';
 import Reports from './pages/Reports.jsx';
 import Settings from './pages/Settings.jsx';
+import Profile from './pages/Profile.jsx';
 import Logs from './pages/Logs.jsx';
 
 function PrivateRoute({ children }) {
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="users" element={<Users />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="logs" element={<Logs />} />
       </Route>
 
