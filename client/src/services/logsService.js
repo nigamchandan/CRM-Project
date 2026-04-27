@@ -36,8 +36,14 @@ export const exportLogs = async (params = {}, format = 'csv') => {
   URL.revokeObjectURL(url);
 };
 
-/** POST /api/logs/purge — admin only. Manually trigger cleanup. */
+/**
+ * POST /api/logs/purge — admin only. Manually trigger cleanup.
+ *
+ * Note: we send `{}` rather than `null` because express.json() runs in strict
+ * mode by default and rejects a top-level `null` body with
+ * `Unexpected token 'n', "null" is not valid JSON`.
+ */
 export const purgeNow = (days = 7) =>
-  api.post('/logs/purge', null, { params: { days } }).then((r) => r.data);
+  api.post('/logs/purge', {}, { params: { days } }).then((r) => r.data);
 
 export default { list, distinctActions, distinctEntities, exportLogs, purgeNow };
