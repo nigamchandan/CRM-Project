@@ -1,0 +1,193 @@
+You are a senior enterprise software architect and full-stack engineer.
+
+I have a CRM system with a basic ticket module.
+
+Now I want to upgrade it into a REAL-WORLD ENTERPRISE TICKETING SYSTEM supporting:
+
+* Multiple locations (sites)
+* Multiple engineers per site
+* Multiple managers (reporting hierarchy)
+* Smart assignment
+* Role-based visibility
+
+IMPORTANT:
+
+* Do NOT rebuild from scratch
+* Extend existing system
+* Keep current architecture intact
+
+========================
+🎯 OBJECTIVE
+============
+
+Transform ticket system into a multi-location, role-aware, intelligent system.
+
+========================
+🧩 1. DATABASE EXTENSION
+========================
+
+Add new tables:
+
+locations:
+
+* id, name
+
+teams:
+
+* id, name, location_id
+
+Update users table:
+
+* add role (admin, manager, engineer)
+* add manager_id (self reference)
+* add location_id
+* add team_id
+
+Update tickets table:
+
+* add location_id
+* add assigned_engineer_id
+* add reporting_manager_id
+* add source
+* add SLA fields (created_at, updated_at)
+
+========================
+⚙️ 2. SMART TICKET CREATION
+===========================
+
+* When creating ticket:
+
+  * Auto assign location (based on user or selection)
+  * Auto assign engineer based on location/team
+  * Auto assign manager from engineer.manager_id
+
+* Allow manual override
+
+========================
+👤 3. ROLE-BASED ACCESS CONTROL
+===============================
+
+Engineer:
+
+* See only assigned tickets
+
+Manager:
+
+* See tickets of their team
+
+Admin:
+
+* See all tickets
+
+Apply filtering in backend queries
+
+========================
+📂 4. UI IMPROVEMENTS
+=====================
+
+Ticket List:
+
+* Add filters:
+
+  * Location
+  * Team
+  * Engineer
+  * Manager
+  * Status
+  * Priority
+
+* Add quick filters:
+
+  * My Tickets
+  * My Team
+  * My Location
+  * Overdue
+
+========================
+📋 5. TICKET DETAIL PANEL
+=========================
+
+Show:
+
+* Ticket info
+* Location
+* Assigned engineer
+* Reporting manager
+* Timeline (activity)
+* Comments
+
+Add quick actions:
+
+* Reassign
+* Change status
+* Escalate
+
+========================
+⚡ 6. ESCALATION SYSTEM
+======================
+
+* If ticket not updated in X hours:
+
+  * Notify manager
+  * Mark as "Escalated"
+
+========================
+🔔 7. REAL-TIME UPDATES
+=======================
+
+Use existing Socket.io:
+
+* Notify engineer on assignment
+* Notify manager on escalation
+* Update UI live
+
+========================
+📊 8. DASHBOARD IMPROVEMENTS
+============================
+
+Engineer:
+
+* My tickets
+* My overdue tasks
+
+Manager:
+
+* Team tickets
+* Escalations
+* SLA performance
+
+Admin:
+
+* Location-wise stats
+* System overview
+
+========================
+🎨 9. UX IMPROVEMENTS
+=====================
+
+* Use color-coded priority
+* Highlight overdue tickets
+* Show location badges
+* Add icons for clarity
+
+========================
+📄 OUTPUT FORMAT
+================
+
+* Show modified database schema
+* Show backend changes
+* Show frontend changes
+* Keep code modular
+
+========================
+⚠️ IMPORTANT
+============
+
+* Implement step-by-step:
+
+  1. Database update
+  2. Backend logic
+  3. UI changes
+  4. Real-time updates
+
+Start with database schema update.

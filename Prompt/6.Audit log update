@@ -1,0 +1,180 @@
+You are a senior full-stack engineer building enterprise-level audit logging.
+
+I already have a basic audit log system with:
+
+* Logs stored in PostgreSQL
+* Fields: timestamp, user, action, entity, meta
+* Basic UI table
+
+Now I want to UPGRADE it to a PROFESSIONAL AUDIT LOG SYSTEM.
+
+IMPORTANT:
+
+* Do NOT rebuild from scratch
+* Extend existing system
+* Keep architecture intact
+
+========================
+🎯 OBJECTIVE
+============
+
+Make audit logs:
+
+* Filterable
+* Exportable
+* Human-readable
+* Auto-cleaned (7 days retention)
+* User-friendly
+
+========================
+🧩 1. DATABASE RETENTION (7 DAYS)
+=================================
+
+* Implement automatic cleanup:
+
+  * Delete logs older than 7 days
+
+* Use:
+
+  * Node cron job OR scheduled task
+
+Example:
+DELETE FROM logs WHERE created_at < NOW() - INTERVAL '7 days';
+
+========================
+🔍 2. ADVANCED FILTERS (BACKEND + FRONTEND)
+===========================================
+
+Add filters:
+
+* Date range (from, to)
+* User ID
+* Action
+* Entity type
+
+Update API:
+GET /logs?user_id=&action=&entity=&from=&to=
+
+Ensure filtering happens in backend SQL queries
+
+========================
+⚡ 3. QUICK FILTER BUTTONS
+=========================
+
+Add UI buttons:
+
+* Today
+* Last 24 hours
+* Last 7 days
+
+========================
+📤 4. EXPORT FEATURE
+====================
+
+Add export functionality:
+
+* Export CSV
+* Export JSON
+
+Export only filtered results
+
+Backend:
+
+* Create export endpoint
+* Format data properly
+
+Frontend:
+
+* Add "Export" button
+
+========================
+🧠 5. HUMAN-READABLE META
+=========================
+
+Transform meta JSON:
+
+Example:
+{"manager":2,"engineer":27}
+
+Convert to:
+Manager: Ravi
+Engineer: Nigam
+
+Fetch related names from database
+
+========================
+🎨 6. UI IMPROVEMENTS
+=====================
+
+* Add colored badges for actions:
+
+  * login → green
+  * create → blue
+  * assign → yellow
+  * delete → red
+
+* Add icons for actions
+
+* Improve spacing and readability
+
+========================
+🔗 7. CLICKABLE ENTITIES
+========================
+
+* Make entity links clickable:
+
+  * tickets → open ticket page
+  * users → open user page
+
+========================
+🔎 8. SEARCH IMPROVEMENT
+========================
+
+* Allow searching:
+
+  * user name
+  * action
+  * entity ID
+
+========================
+📊 9. OPTIONAL: TIMELINE VIEW
+=============================
+
+* Add toggle:
+
+  * Table view
+  * Timeline view
+
+========================
+⚡ 10. PERFORMANCE
+=================
+
+* Add pagination
+* Add indexes on:
+
+  * created_at
+  * user_id
+  * action
+
+========================
+📄 OUTPUT FORMAT
+================
+
+* Show modified backend files
+* Show frontend changes
+* Show SQL changes
+* Keep code modular
+
+========================
+⚠️ IMPORTANT
+============
+
+* Implement step-by-step:
+
+  1. Retention system
+  2. Backend filters
+  3. UI filters
+  4. Export feature
+  5. UI improvements
+
+Start with retention system.
