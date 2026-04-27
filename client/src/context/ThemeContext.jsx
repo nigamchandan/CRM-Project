@@ -3,10 +3,13 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 const ThemeContext = createContext(null);
 
 const getInitial = () => {
-  if (typeof window === 'undefined') return 'light';
+  // 1. Honour the user's saved choice if they've ever toggled the theme.
+  // 2. Otherwise default to DARK regardless of OS preference — the design
+  //    is dark-first; light is opt-in via the topbar toggle.
+  if (typeof window === 'undefined') return 'dark';
   const stored = localStorage.getItem('theme');
   if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'dark';
 };
 
 export function ThemeProvider({ children }) {

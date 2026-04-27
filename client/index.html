@@ -11,13 +11,16 @@
       rel="stylesheet"
     />
     <script>
-      // Apply theme before paint to prevent FOUC
+      // Apply theme before paint to prevent FOUC.
+      // Default is dark; light is opt-in (persisted in localStorage).
       (function () {
         try {
           var t = localStorage.getItem('theme');
-          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          if (t !== 'light' && t !== 'dark') t = 'dark';
           if (t === 'dark') document.documentElement.classList.add('dark');
-        } catch (e) {}
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
       })();
     </script>
   </head>
