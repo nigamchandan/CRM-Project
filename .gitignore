@@ -1,0 +1,66 @@
+# =============================================================================
+#  CRM-Project — .gitignore
+# =============================================================================
+
+# ---------- Dependencies ----------
+node_modules/
+.pnp/
+.pnp.js
+jspm_packages/
+
+# ---------- Environment files (NEVER commit secrets) ----------
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+# keep example files — they contain placeholders only
+!.env.example
+
+# ---------- Build / dist ----------
+dist/
+build/
+.cache/
+.parcel-cache/
+.vite/
+
+# ---------- Logs ----------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# ---------- Test / coverage ----------
+coverage/
+.nyc_output/
+*.lcov
+
+# ---------- Uploads (runtime artifacts) ----------
+server/uploads/
+uploads/
+
+# ---------- Editor / OS ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Misc ----------
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.npm/
+.yarn/
+package-lock.json.bak
+*.tmp
+*.bak
+
+# ---------- Cursor / AI ----------
+.cursor/

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Modern CRM
 
 A full-featured, production-ready CRM application built with Node.js, Express, PostgreSQL, React, and Socket.io.
@@ -259,3 +260,7 @@ cd server && NODE_ENV=production npm start
 ## License
 
 MIT
+=======
+# CRM-Project
+This is a ticketing tool like salesforce.
+>>>>>>> ed0c3d83e270576da21036a55db4ebd18302770e
