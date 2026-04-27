@@ -62,5 +62,10 @@ package-lock.json.bak
 *.tmp
 *.bak
 
+# ---------- Docker ----------
+# local docker-compose override files
+docker-compose.override.yml
+docker-compose.*.local.yml
+
 # ---------- Cursor / AI ----------
 .cursor/

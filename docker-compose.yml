@@ -1,0 +1,86 @@
+# =============================================================================
+#  Local prod-parity stack.
+#  Builds images from the local Dockerfiles and runs the full app on
+#    http://localhost:8080
+#
+#  Usage:
+#    docker compose up -d --build       # first run
+#    docker compose logs -f              # tail logs
+#    docker compose down                 # stop (data persists in volume)
+#    docker compose down -v              # stop + delete DB volume
+#
+#  On first run, set RUN_DB_SEED=true in .env to seed demo data.
+# =============================================================================
+
+services:
+  crm-db:
+    image: postgres:15-alpine
+    container_name: crm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-crm_db}
+      POSTGRES_USER: ${DB_USER:-crm_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-crm_pass}
+    volumes:
+      - crm_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-crm_user} -d ${DB_NAME:-crm_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [crm-net]
+
+  crm-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: crm-server:local
+    container_name: crm-server
+    restart: unless-stopped
+    depends_on:
+      crm-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: crm-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-crm_db}
+      DB_USER: ${DB_USER:-crm_user}
+      DB_PASSWORD: ${DB_PASSWORD:-crm_pass}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_env_file}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
+      UPLOAD_DIR: uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      RUN_DB_SEED: ${RUN_DB_SEED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-CRM Support <no-reply@crm.test>}
+    volumes:
+      - crm_uploads:/app/uploads
+    networks: [crm-net]
+
+  crm-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: crm-client:local
+    container_name: crm-client
+    restart: unless-stopped
+    depends_on:
+      - crm-server
+    ports:
+      - "${HOST_HTTP_PORT:-8080}:8080"
+    networks: [crm-net]
+
+volumes:
+  crm_db_data:
+  crm_uploads:
+
+networks:
+  crm-net:
+    driver: bridge
