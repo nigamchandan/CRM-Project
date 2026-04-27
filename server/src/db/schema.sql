@@ -46,30 +46,7 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE INDEX IF NOT EXISTS idx_teams_location ON teams(location_id);
 
 -- ----------------------------------------------------------------------------
--- PROJECTS (customer projects — every ticket belongs to a project)
---   Each project has a Project Manager who must be notified when issues arise.
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS projects (
-  id                 SERIAL PRIMARY KEY,
-  name               VARCHAR(150) NOT NULL,
-  code               VARCHAR(20),                                          -- short ID, e.g. 'SRS', 'ASTR'
-  location_id        INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-  project_manager_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  customer           VARCHAR(150),                                         -- customer / company name
-  customer_email     VARCHAR(150),
-  customer_phone     VARCHAR(50),
-  description        TEXT,
-  is_active          BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (name, location_id)
-);
-CREATE INDEX IF NOT EXISTS idx_projects_location ON projects(location_id);
-CREATE INDEX IF NOT EXISTS idx_projects_pm       ON projects(project_manager_id);
-CREATE INDEX IF NOT EXISTS idx_projects_active   ON projects(is_active);
-
--- ----------------------------------------------------------------------------
--- USERS
+-- USERS  (must be created before any table that references users(id))
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id          SERIAL PRIMARY KEY,
@@ -92,6 +69,29 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id     INTEGER REFERENCES teams(
 CREATE INDEX IF NOT EXISTS idx_users_manager  ON users(manager_id);
 CREATE INDEX IF NOT EXISTS idx_users_location ON users(location_id);
 CREATE INDEX IF NOT EXISTS idx_users_team     ON users(team_id);
+
+-- ----------------------------------------------------------------------------
+-- PROJECTS (customer projects — every ticket belongs to a project)
+--   Each project has a Project Manager who must be notified when issues arise.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS projects (
+  id                 SERIAL PRIMARY KEY,
+  name               VARCHAR(150) NOT NULL,
+  code               VARCHAR(20),                                          -- short ID, e.g. 'SRS', 'ASTR'
+  location_id        INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+  project_manager_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  customer           VARCHAR(150),                                         -- customer / company name
+  customer_email     VARCHAR(150),
+  customer_phone     VARCHAR(50),
+  description        TEXT,
+  is_active          BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (name, location_id)
+);
+CREATE INDEX IF NOT EXISTS idx_projects_location ON projects(location_id);
+CREATE INDEX IF NOT EXISTS idx_projects_pm       ON projects(project_manager_id);
+CREATE INDEX IF NOT EXISTS idx_projects_active   ON projects(is_active);
 
 -- ----------------------------------------------------------------------------
 -- CONTACTS
