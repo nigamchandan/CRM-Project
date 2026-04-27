@@ -12,13 +12,13 @@ export default function AppLayout() {
         <Topbar onMenu={() => setOpen(true)} />
         {/*
           Layout sizing notes:
-          - Horizontal padding stays at p-6 even on lg screens (was lg:p-8) so we
-            don't add extra chrome on wider monitors.
-          - max-w bumped to 1920px and only kicks in on ultra-wide displays
-            (≥ 2K), keeping a normal 1366–1920 monitor content edge-to-edge while
-            still avoiding mile-long lines on a 4K screen.
+          - Horizontal padding is a flat px-4 (16px) at every breakpoint so the
+            main content edge aligns with the topbar search/avatars and we don't
+            waste real estate on wide monitors.
+          - max-w only kicks in on ≥2K displays so 1366–1920 monitors render
+            edge-to-edge while 4K still avoids mile-long lines.
         */}
-        <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
+        <main className="flex-1 px-4 py-4 md:py-6">
           <div className="max-w-[1920px] mx-auto">
             <Outlet />
           </div>

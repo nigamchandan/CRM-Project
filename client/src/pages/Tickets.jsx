@@ -439,7 +439,7 @@ export default function Tickets() {
 
   /* ============================================================ render */
   return (
-    <div className="-mx-6 -mt-6 px-6 pt-6 min-h-screen bg-gray-50 dark:bg-slate-950">
+    <div className="-mx-4 -mt-4 px-4 pt-4 md:-mt-6 md:pt-6 min-h-screen bg-gray-50 dark:bg-slate-950">
       {/* Title row */}
       <div className="flex items-baseline justify-between mb-3">
         <div>
@@ -590,7 +590,7 @@ export default function Tickets() {
 
       {/* Advanced filters slide-down */}
       {advOpen && (
-        <div className="border-b border-gray-200 dark:border-slate-700 py-3 bg-gray-50/50 dark:bg-slate-900/40 -mx-6 px-6">
+        <div className="border-b border-gray-200 dark:border-slate-700 py-3 bg-gray-50/50 dark:bg-slate-900/40 -mx-4 px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <SelectField
               label="Status"
