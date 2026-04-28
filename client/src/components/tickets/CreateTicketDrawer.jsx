@@ -5,6 +5,8 @@ import * as pipelinesService from '../../services/ticketPipelinesService';
 import * as projectsService from '../../services/projectsService';
 import * as usersService from '../../services/usersService';
 import * as contactsService from '../../services/contactsService';
+import api from '../../services/api';
+import { ProjectFormModal } from '../../pages/Settings.jsx';
 import { useAuth } from '../../context/AuthContext';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -48,13 +50,26 @@ const EMPTY_FORM = {
 
 export default function CreateTicketDrawer({ open, onClose, onCreated, defaultProjectId }) {
   const { user } = useAuth();
+  const canCreateProject = user?.role === 'admin' || user?.role === 'manager';
   const [form, setForm]           = useState(EMPTY_FORM);
   const [pipelines, setPipelines] = useState([]);
   const [stages, setStages]       = useState([]);
   const [users, setUsers]         = useState([]);
   const [projects, setProjects]   = useState([]);
   const [contacts, setContacts]   = useState([]);
+  const [locations, setLocations] = useState([]);
   const [saving, setSaving]       = useState(false);
+  const [newProjOpen, setNewProjOpen] = useState(false);
+
+  // Locations are only needed for the inline "+ New project" modal — fetch
+  // them lazily the first time the modal opens to avoid an extra request on
+  // every drawer mount.
+  useEffect(() => {
+    if (!newProjOpen || locations.length) return;
+    api.get('/locations')
+      .then((r) => setLocations(Array.isArray(r.data) ? r.data : (r.data?.data || [])))
+      .catch(() => {});
+  }, [newProjOpen, locations.length]);
 
   /* ----------------------------------------------------------------- load */
   useEffect(() => {
@@ -333,6 +348,15 @@ export default function CreateTicketDrawer({ open, onClose, onCreated, defaultPr
                     </option>
                   ))}
                 </select>
+                {canCreateProject && (
+                  <button
+                    type="button"
+                    onClick={() => setNewProjOpen(true)}
+                    className="mt-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                  >
+                    + Create new project
+                  </button>
+                )}
               </Field>
             </Section>
           </div>
@@ -369,6 +393,28 @@ export default function CreateTicketDrawer({ open, onClose, onCreated, defaultPr
 
       {/* keyframes for the slide-in animation */}
       <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+
+      {/* Inline "+ Create new project" modal — auto-selects the new project when saved */}
+      <ProjectFormModal
+        open={newProjOpen}
+        project={null}
+        users={users}
+        locations={locations}
+        onClose={() => setNewProjOpen(false)}
+        onSaved={(saved) => {
+          setNewProjOpen(false);
+          if (saved?.id) {
+            setProjects((prev) => {
+              const without = prev.filter((p) => p.id !== saved.id);
+              return [saved, ...without].sort((a, b) => a.name.localeCompare(b.name));
+            });
+            setForm((f) => ({ ...f, project_id: String(saved.id) }));
+          } else {
+            // Fallback: refetch the list if the API didn't echo the row back.
+            projectsService.list({ active: true }).then(setProjects).catch(() => {});
+          }
+        }}
+      />
     </div>
   );
 }
