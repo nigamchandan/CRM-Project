@@ -16,7 +16,7 @@ const NAV = [
   { to: '/tasks',     label: 'Tasks',      icon: 'checkCircle' },
   { to: '/reports',   label: 'Reports',    icon: 'chartBar',   hideFor: ['engineer'] },
   { to: '/users',     label: 'Users',      icon: 'userCircle', roles: ['admin','manager'] },
-  { to: '/settings',  label: 'Settings',   icon: 'cog',        roles: ['admin'] },
+  { to: '/settings',  label: 'Settings',   icon: 'cog',        roles: ['admin','manager'] },
   { to: '/logs',      label: 'Audit Logs', icon: 'document',   roles: ['admin','manager'] },
 ];
 

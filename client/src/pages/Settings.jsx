@@ -3,7 +3,11 @@ import toast from 'react-hot-toast';
 import * as settingsService from '../services/settingsService';
 import * as dealsService from '../services/dealsService';
 import * as ticketPipelinesService from '../services/ticketPipelinesService';
+import * as projectsService from '../services/projectsService';
+import * as usersService from '../services/usersService';
+import api from '../services/api';
 import PageHeader from '../components/ui/PageHeader.jsx';
+import Modal from '../components/ui/Modal.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -12,6 +16,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 // ---------------------------------------------------------------------------
 const SECTIONS = [
   { id: 'general',         label: 'General',         icon: 'cog',        sub: 'Workspace identity & locale' },
+  { id: 'projects',        label: 'Projects',        icon: 'briefcase',  sub: 'Customer / service projects' },
   { id: 'deal-pipeline',   label: 'Deal Pipeline',   icon: 'trendingUp', sub: 'Sales stages & colors' },
   { id: 'ticket-pipelines',label: 'Ticket Pipelines',icon: 'ticket',     sub: 'Support pipelines & stages' },
   { id: 'sla',             label: 'SLA Policy',      icon: 'slidersV',   sub: 'Response & resolution targets' },
@@ -64,6 +69,7 @@ export default function Settings() {
         {/* ---------------- Active section ---------------- */}
         <main className="space-y-4">
           {tab === 'general'         && <GeneralSection         isAdmin={isAdmin} />}
+          {tab === 'projects'        && <ProjectsSection        canEdit={canEditStages} isAdmin={isAdmin} />}
           {tab === 'deal-pipeline'   && <DealPipelineSection    canEdit={canEditStages} />}
           {tab === 'ticket-pipelines'&& <TicketPipelinesSection canEdit={canEditStages} />}
           {tab === 'sla'             && <SlaSection             isAdmin={isAdmin} />}
@@ -833,4 +839,361 @@ function EmailSection({ isAdmin }) {
       </div>
     </SettingsCard>
   );
+}
+
+/* =========================================================================
+ * Projects (a.k.a. "Service Projects" — what tickets associate to)
+ * =======================================================================*/
+function ProjectsSection({ canEdit, isAdmin }) {
+  const [rows, setRows]         = useState([]);
+  const [users, setUsers]       = useState([]);
+  const [locations, setLocs]    = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [editing, setEditing]   = useState(null); // null = closed; {} = new; {id, …} = edit
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await projectsService.list();
+      setRows(Array.isArray(data) ? data : (data?.data || []));
+    } catch { toast.error('Could not load projects'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // Lookups for the modal — only fetch once.
+  useEffect(() => {
+    usersService.list({ limit: 200 })
+      .then((r) => setUsers(r?.data ?? r ?? []))
+      .catch(() => {});
+    api.get('/locations')
+      .then((r) => setLocs(Array.isArray(r.data) ? r.data : (r.data?.data || [])))
+      .catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((p) =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.code || '').toLowerCase().includes(q) ||
+      (p.customer || '').toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  const toggleActive = async (p) => {
+    if (!canEdit) return;
+    try {
+      await projectsService.update(p.id, { is_active: !p.is_active });
+      load();
+    } catch { toast.error('Could not update project'); }
+  };
+
+  const remove = async (p) => {
+    if (!isAdmin) return;
+    const tickets = p.ticket_count || 0;
+    const msg = tickets
+      ? `"${p.name}" has ${tickets} ticket(s) attached. Delete anyway? (Tickets will keep working but lose the project link.)`
+      : `Delete project "${p.name}"?`;
+    if (!confirm(msg)) return;
+    try {
+      await projectsService.remove(p.id);
+      toast.success('Project deleted');
+      load();
+    } catch { toast.error('Delete failed'); }
+  };
+
+  return (
+    <SettingsCard
+      title="Service Projects"
+      description="Customer / service projects that tickets associate with. Each project has a Project Manager who is notified when issues are raised."
+      footer={
+        canEdit ? (
+          <button className="btn-primary" onClick={() => setEditing({})}>
+            <Icon name="plus" className="w-4 h-4 mr-1" /> New project
+          </button>
+        ) : null
+      }
+    >
+      {!canEdit && (<div className="-m-5 mb-4"><ReadOnlyHint /></div>)}
+
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="relative flex-1 max-w-sm">
+          <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
+          <input
+            className="input pl-9"
+            placeholder="Search by name, code, or customer…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <span className="text-xs text-gray-500 dark:text-slate-400">
+          {filtered.length} project{filtered.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <div className="rounded-lg border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50/60 dark:bg-slate-800/40 text-[11px] uppercase tracking-wider text-gray-500 dark:text-slate-400">
+            <tr>
+              <th className="text-left px-3 py-2 font-medium">Name</th>
+              <th className="text-left px-3 py-2 font-medium">Customer</th>
+              <th className="text-left px-3 py-2 font-medium">Project manager</th>
+              <th className="text-left px-3 py-2 font-medium">Tickets</th>
+              <th className="text-left px-3 py-2 font-medium">Status</th>
+              <th className="text-right px-3 py-2 font-medium w-24">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500 dark:text-slate-400">Loading…</td></tr>
+            )}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500 dark:text-slate-400">
+                {search ? 'No projects match your search.' : 'No projects yet — click "New project" to add one.'}
+              </td></tr>
+            )}
+            {filtered.map((p) => (
+              <tr key={p.id} className="border-t border-gray-100 dark:border-slate-800 hover:bg-gray-50/50 dark:hover:bg-slate-800/30">
+                <td className="px-3 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => canEdit && setEditing(p)}
+                    className={`text-left ${canEdit ? 'hover:text-brand-600 dark:hover:text-brand-400' : 'cursor-default'}`}
+                    title={canEdit ? 'Click to edit' : ''}
+                  >
+                    <div className="font-medium text-gray-900 dark:text-slate-100">{p.name}</div>
+                    {p.code && (
+                      <div className="text-[11px] text-gray-500 dark:text-slate-500">{p.code}</div>
+                    )}
+                  </button>
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="text-gray-700 dark:text-slate-300">{p.customer || '—'}</div>
+                  {p.customer_email && (
+                    <div className="text-[11px] text-gray-500 dark:text-slate-500 truncate max-w-[180px]">{p.customer_email}</div>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 text-gray-700 dark:text-slate-300">
+                  {p.project_manager_name || <span className="text-gray-400 dark:text-slate-500">Unassigned</span>}
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    {p.open_ticket_count || 0}
+                    <span className="text-gray-400 dark:text-slate-500"> / {p.ticket_count || 0}</span>
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <Toggle
+                    checked={!!p.is_active}
+                    disabled={!canEdit}
+                    onChange={() => toggleActive(p)}
+                    label={p.is_active ? 'Active' : 'Inactive'}
+                  />
+                </td>
+                <td className="px-3 py-2.5">
+                  <div className="flex justify-end gap-1">
+                    {canEdit && (
+                      <button
+                        className="btn-ghost !px-2"
+                        onClick={() => setEditing(p)}
+                        title="Edit project"
+                      >
+                        <Icon name="pencil" className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        className="btn-ghost !px-2 text-red-600 dark:text-red-400"
+                        onClick={() => remove(p)}
+                        title="Delete project"
+                      >
+                        <Icon name="trash" className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <ProjectFormModal
+        open={!!editing}
+        project={editing && editing.id ? editing : null}
+        users={users}
+        locations={locations}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); load(); }}
+      />
+    </SettingsCard>
+  );
+}
+
+/**
+ * Reusable Project create/edit modal. Used by Settings → Projects and also
+ * by the Create Ticket drawer's inline "+ New project" shortcut.
+ *
+ * Props:
+ *   open         boolean
+ *   project      existing project (edit mode) or null (create mode)
+ *   users        list of users (for the project-manager picker)
+ *   locations    list of locations (for the location picker; optional)
+ *   onClose()    called when user dismisses
+ *   onSaved(p)   called with the freshly-saved project on success
+ */
+export function ProjectFormModal({ open, project, users = [], locations = [], onClose, onSaved }) {
+  const isEdit = !!project;
+  const [form, setForm]   = useState(emptyProject());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(project ? { ...emptyProject(), ...project } : emptyProject());
+  }, [open, project]);
+
+  // PM picker — only show users who could plausibly own a project.
+  const pmCandidates = useMemo(
+    () => users.filter((u) => ['admin', 'manager', 'engineer'].includes(u.role)),
+    [users]
+  );
+
+  const save = async () => {
+    if (!form.name?.trim()) { toast.error('Project name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        code: form.code?.trim() || null,
+        location_id:        form.location_id        ? Number(form.location_id)        : null,
+        project_manager_id: form.project_manager_id ? Number(form.project_manager_id) : null,
+        customer:           form.customer?.trim() || null,
+        customer_email:     form.customer_email?.trim() || null,
+        customer_phone:     form.customer_phone?.trim() || null,
+        description:        form.description?.trim() || null,
+        is_active:          !!form.is_active,
+      };
+      const saved = isEdit
+        ? await projectsService.update(project.id, payload)
+        : await projectsService.create(payload);
+      toast.success(isEdit ? 'Project updated' : 'Project created');
+      onSaved && onSaved(saved);
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Save failed';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title={isEdit ? `Edit project — ${project?.name || ''}` : 'New project'}
+      onClose={onClose}
+      size="lg"
+      footer={
+        <>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Create project')}
+          </button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Project name *">
+          <input
+            className="input" autoFocus
+            value={form.name || ''}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+        </Field>
+        <Field label="Short code" hint="Optional ID like SRS, ASTR.">
+          <input
+            className="input" maxLength={20}
+            value={form.code || ''}
+            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+          />
+        </Field>
+
+        <Field label="Project manager">
+          <select
+            className="input"
+            value={form.project_manager_id || ''}
+            onChange={(e) => setForm({ ...form, project_manager_id: e.target.value })}
+          >
+            <option value="">— Unassigned —</option>
+            {pmCandidates.map((u) => (
+              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Location">
+          <select
+            className="input"
+            value={form.location_id || ''}
+            onChange={(e) => setForm({ ...form, location_id: e.target.value })}
+          >
+            <option value="">— None —</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}{l.code ? ` (${l.code})` : ''}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Customer / company">
+          <input
+            className="input"
+            value={form.customer || ''}
+            onChange={(e) => setForm({ ...form, customer: e.target.value })}
+          />
+        </Field>
+        <Field label="Customer email">
+          <input
+            type="email" className="input"
+            value={form.customer_email || ''}
+            onChange={(e) => setForm({ ...form, customer_email: e.target.value })}
+          />
+        </Field>
+
+        <Field label="Customer phone">
+          <input
+            className="input"
+            value={form.customer_phone || ''}
+            onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
+          />
+        </Field>
+        <div className="flex items-end">
+          <Toggle
+            checked={form.is_active !== false}
+            onChange={(v) => setForm({ ...form, is_active: v })}
+            label="Active"
+            description="Inactive projects don't appear in ticket pickers."
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <Field label="Description" hint="Internal notes about this project.">
+            <textarea
+              className="input min-h-[80px]"
+              value={form.description || ''}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </Field>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function emptyProject() {
+  return {
+    name: '', code: '',
+    location_id: '', project_manager_id: '',
+    customer: '', customer_email: '', customer_phone: '',
+    description: '', is_active: true,
+  };
 }
