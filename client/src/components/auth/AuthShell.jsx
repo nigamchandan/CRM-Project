@@ -60,7 +60,8 @@ export default function AuthShell({ children, title, subtitle, footer }) {
 
           {/* Headline + features */}
           <div className="max-w-lg">
-            <h2 className="text-3xl xl:text-[2.6rem] font-semibold leading-[1.1] tracking-tightest">
+            <h2 className="text-3xl xl:text-[2.6rem] font-semibold leading-[1.1] tracking-tight"
+                style={{ letterSpacing: '-0.03em' }}>
               The CRM that grows<br />
               <span className="bg-gradient-to-r from-white via-white to-[#c5cbff] bg-clip-text text-transparent">
                 with your team.
