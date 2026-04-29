@@ -10,6 +10,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import CreateTicketDrawer, { QuickTicketButton } from '../components/tickets/CreateTicketDrawer.jsx';
 import InlinePriority from '../components/tickets/InlinePriority.jsx';
 import InlineOwner from '../components/tickets/InlineOwner.jsx';
+import SlaBadge from '../components/tickets/SlaBadge.jsx';
 import ContextMenu from '../components/ui/ContextMenu.jsx';
 import usePopoverDismiss from '../hooks/usePopoverDismiss.js';
 import { useAuth } from '../context/AuthContext';
@@ -153,14 +154,23 @@ const COLUMNS = [
       : <span className="text-gray-400">—</span>,
   },
   {
-    id: 'sla', label: 'SLA due', sortKey: 'sla', minW: 130,
+    id: 'sla', label: 'SLA due', sortKey: 'sla', minW: 160,
     render: (t) => {
       if (!t.sla_due_at) return <span className="text-gray-400">—</span>;
       const past = new Date(t.sla_due_at).getTime() < Date.now() && t.status !== 'closed';
       return (
-        <span className={`text-xs ${past ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-slate-400'}`}>
-          {new Date(t.sla_due_at).toLocaleDateString()}
-        </span>
+        <div className="flex flex-col items-start gap-1">
+          <span className={`text-xs ${past ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-slate-400'}`}>
+            {new Date(t.sla_due_at).toLocaleDateString()}
+          </span>
+          <SlaBadge
+            dueAt={t.sla_due_at}
+            createdAt={t.created_at}
+            status={t.status}
+            paused={!!t.sla_paused_at}
+            live
+          />
+        </div>
       );
     },
   },

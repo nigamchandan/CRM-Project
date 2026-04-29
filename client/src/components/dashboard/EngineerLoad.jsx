@@ -60,22 +60,33 @@ export default function EngineerLoad({ limit = 6 }) {
             : r.sla_at_risk > 0
               ? 'bg-amber-500'
               : 'bg-brand-500';
+        const weighted = Number(r.weighted_count) || 0;
+        const breakdown = [
+          r.critical_priority ? `${r.critical_priority} urgent` : null,
+          r.high_priority_only ? `${r.high_priority_only} high` : null,
+          r.medium_priority   ? `${r.medium_priority} med`     : null,
+          r.low_priority      ? `${r.low_priority} low`        : null,
+        ].filter(Boolean).join(' · ') || 'No active tickets';
         return (
           <li key={r.id} className="flex items-center gap-3 group">
             <span className="w-5 text-[11px] font-mono text-gray-400 dark:text-slate-500 tabular-nums">
               {idx + 1}.
             </span>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <Link
                   to="/users"
                   className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate hover:text-brand-600 dark:hover:text-brand-400"
-                  title={`${r.name}${r.email ? ` · ${r.email}` : ''}`}
+                  title={`${r.name}${r.email ? ` · ${r.email}` : ''} — ${breakdown}`}
                 >
                   {r.name}
                 </Link>
+                {/* Inline "(N active)" — matches the prompt's "Nigam (12 active)" format. */}
+                <span className="text-[11px] text-gray-500 dark:text-slate-400 tabular-nums shrink-0">
+                  ({r.open_total} active)
+                </span>
                 {r.team_name && (
-                  <span className="text-[10px] text-gray-400 dark:text-slate-500 truncate">{r.team_name}</span>
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 truncate">· {r.team_name}</span>
                 )}
               </div>
               <div className="mt-1 h-1.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden">
@@ -83,7 +94,11 @@ export default function EngineerLoad({ limit = 6 }) {
               </div>
             </div>
             <div className="text-right text-[11px] tabular-nums">
-              <div className="font-semibold text-gray-700 dark:text-slate-200">{r.open_total}</div>
+              {/* Priority-weighted count (urgent×4 + high×3 + med×2 + low×1) — at
+                  a glance reads as "is this engineer drowning in critical work?" */}
+              <div className="font-semibold text-gray-700 dark:text-slate-200" title={`Weighted load: ${breakdown}`}>
+                {weighted || r.open_total}
+              </div>
               <div className="flex items-center gap-1.5 text-gray-400 dark:text-slate-500">
                 {r.sla_breached > 0 && (
                   <span className="text-rose-600 dark:text-rose-400" title={`${r.sla_breached} SLA breached`}>
@@ -96,7 +111,7 @@ export default function EngineerLoad({ limit = 6 }) {
                   </span>
                 )}
                 {r.high_priority > 0 && (
-                  <span title={`${r.high_priority} high priority`}>{r.high_priority}↑</span>
+                  <span title={`${r.high_priority} high+ priority`}>{r.high_priority}↑</span>
                 )}
               </div>
             </div>

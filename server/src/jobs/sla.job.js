@@ -58,7 +58,8 @@ async function getAdminIds() {
  */
 async function runWarnPass() {
   const { rows } = await query(
-    `SELECT id, ticket_no, subject, sla_due_at, reporting_manager_id, project_manager_id
+    `SELECT id, ticket_no, subject, sla_due_at,
+            assigned_engineer_id, reporting_manager_id, project_manager_id
        FROM tickets
       WHERE status NOT IN ('closed', 'resolved')
         AND sla_paused_at IS NULL
@@ -76,7 +77,9 @@ async function runWarnPass() {
     await query(`UPDATE tickets SET sla_warned_at = NOW() WHERE id = $1`, [t.id]);
 
     const mins = Math.max(0, Math.round((new Date(t.sla_due_at).getTime() - Date.now()) / 60000));
-    const recipients = [t.reporting_manager_id, t.project_manager_id]
+    // Engineer first so the person who can actually act on it knows; the
+    // managers still get a copy so the org-chart is informed.
+    const recipients = [t.assigned_engineer_id, t.reporting_manager_id, t.project_manager_id]
       .filter((id) => id && Number.isFinite(Number(id)));
     const fired = new Set();
     for (const userId of recipients) {
@@ -114,7 +117,7 @@ async function runWarnPass() {
 async function runBreachPass() {
   const { rows } = await query(
     `SELECT id, ticket_no, subject, sla_due_at, escalation_level,
-            reporting_manager_id, project_manager_id
+            assigned_engineer_id, reporting_manager_id, project_manager_id
        FROM tickets
       WHERE status NOT IN ('closed', 'resolved')
         AND sla_paused_at IS NULL
@@ -141,10 +144,13 @@ async function runBreachPass() {
       [newLevel, t.id]
     );
 
-    // L1 → reporting manager + project manager. L2 → all admins.
-    const recipients = newLevel >= 2
+    // L1 → engineer + project/reporting manager. L2 → engineer + all admins.
+    // The engineer who owns the work always hears about a breach.
+    const baseManagers = newLevel >= 2
       ? adminIds
       : [t.reporting_manager_id, t.project_manager_id].filter((id) => id && Number.isFinite(Number(id)));
+    const recipients = [t.assigned_engineer_id, ...baseManagers]
+      .filter((id) => id && Number.isFinite(Number(id)));
     const fired = new Set();
     for (const userId of recipients) {
       if (fired.has(userId)) continue;

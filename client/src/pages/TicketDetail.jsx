@@ -4,8 +4,12 @@ import toast from 'react-hot-toast';
 import * as ticketsService from '../services/ticketsService';
 import * as usersService from '../services/usersService';
 import * as ticketPipelinesService from '../services/ticketPipelinesService';
+import { getSocket } from '../services/socket';
 import Icon from '../components/ui/Icon.jsx';
 import Badge from '../components/ui/Badge.jsx';
+import SlaCountdown from '../components/tickets/SlaCountdown.jsx';
+import SlaBadge from '../components/tickets/SlaBadge.jsx';
+import QuickActionsBar from '../components/tickets/QuickActionsBar.jsx';
 
 const STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
 
@@ -24,6 +28,9 @@ export default function TicketDetail() {
   const [activity, setActivity] = useState([]);
   const [users, setUsers]       = useState([]);
   const [stages, setStages]     = useState([]);
+  // Tracks the most recent realtime event so freshly-arrived items can
+  // briefly highlight in the timeline.
+  const [freshKey, setFreshKey] = useState(null);
 
   const load = async () => {
     const [t, c, a] = await Promise.all([
@@ -44,6 +51,59 @@ export default function TicketDetail() {
     usersService.list({ limit: 200 }).then((r) => setUsers(r.data));
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [id]);
+
+  /* ----- Real-time updates over websocket ------------------------------
+   *  Subscribe to ticket / activity / SLA events scoped to this ticket id.
+   *  Any relevant event triggers a `load()` so the UI mirrors the server
+   *  state immediately — no polling, no stale data. The `freshKey` toggle
+   *  drives the activity-card highlight pulse.
+   * ------------------------------------------------------------------- */
+  useEffect(() => {
+    const sock = getSocket();
+    if (!sock) return;
+    const numId = Number(id);
+    const handlers = {};
+
+    handlers['ticket:update']      = (t) => { if (Number(t?.id) === numId) load(); };
+    handlers['ticket:comment']     = (p) => {
+      if (Number(p?.ticket_id) === numId) {
+        setFreshKey(`c-${p.comment?.id ?? Date.now()}`);
+        load();
+      }
+    };
+    handlers['activity:new']       = (a) => {
+      if (a?.entity === 'tickets' && Number(a?.entity_id) === numId) {
+        setFreshKey(`a-${a.id ?? Date.now()}`);
+        load();
+      }
+    };
+    handlers['ticket:sla_warning'] = (p) => {
+      if (Number(p?.id) === numId) {
+        toast.error(`SLA warning — ${p.remaining_minutes} min left`, { id: 'sla-w' });
+        load();
+      }
+    };
+    handlers['ticket:sla_breach']  = (p) => {
+      if (Number(p?.id) === numId) {
+        toast.error(`SLA breached — escalated to L${p.level}`, { id: 'sla-b', duration: 6000 });
+        load();
+      }
+    };
+    handlers['ticket:delete']      = (p) => {
+      if (Number(p?.id) === numId) toast('This ticket was deleted', { icon: '⚠️' });
+    };
+
+    Object.entries(handlers).forEach(([ev, fn]) => sock.on(ev, fn));
+    return () => Object.entries(handlers).forEach(([ev, fn]) => sock.off(ev, fn));
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [id]);
+
+  // Clear the "fresh" flag after 4s so the highlight only pulses briefly.
+  useEffect(() => {
+    if (!freshKey) return;
+    const t = setTimeout(() => setFreshKey(null), 4000);
+    return () => clearTimeout(t);
+  }, [freshKey]);
 
   if (!ticket) {
     return (
@@ -66,8 +126,14 @@ export default function TicketDetail() {
         comments={comments}
         activity={activity}
         onCommented={load}
+        freshKey={freshKey}
       />
-      <AssociationsColumn ticket={ticket} comments={comments} />
+      <AssociationsColumn
+        ticket={ticket}
+        comments={comments}
+        users={users}
+        onChange={load}
+      />
     </div>
   );
 }
@@ -311,7 +377,7 @@ function SummaryColumn({ ticket, users, stages, onChange }) {
 /* =========================================================================
  * MIDDLE — Activity / Overview / Comments
  * =======================================================================*/
-function CenterColumn({ ticket, comments, activity, onCommented }) {
+function CenterColumn({ ticket, comments, activity, onCommented, freshKey }) {
   const [tab, setTab] = useState('activities');
 
   return (
@@ -322,14 +388,19 @@ function CenterColumn({ ticket, comments, activity, onCommented }) {
         <TopTab id="activities" tab={tab} onSelect={setTab} label="Activities" />
         <TopTab id="comments"   tab={tab} onSelect={setTab} label={`Comments (${comments.length})`} />
         <div className="flex-1" />
-        <button className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1">
-          <Icon name="cog" className="w-3.5 h-3.5" /> Customize
-        </button>
+        {/* Live indicator — quietly reassures users that updates are real-time. */}
+        <span className="hidden sm:inline-flex items-center gap-1.5 mr-3 text-[10px] uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          Live
+        </span>
       </div>
 
       <div className="p-5">
         {tab === 'overview'   && <OverviewTab ticket={ticket} />}
-        {tab === 'activities' && <ActivitiesTab ticket={ticket} comments={comments} activity={activity} onCommented={onCommented} />}
+        {tab === 'activities' && <ActivitiesTab ticket={ticket} comments={comments} activity={activity} onCommented={onCommented} freshKey={freshKey} />}
         {tab === 'comments'   && <CommentsTab ticket={ticket} comments={comments} onCommented={onCommented} />}
       </div>
     </section>
@@ -422,7 +493,7 @@ const ACTIVITY_FILTERS = [
   { id: 'assign',  label: 'Assignments' },
 ];
 
-function ActivitiesTab({ ticket, comments, activity, onCommented }) {
+function ActivitiesTab({ ticket, comments, activity, onCommented, freshKey }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -486,7 +557,7 @@ function ActivitiesTab({ ticket, comments, activity, onCommented }) {
           <div key={g.label}>
             <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">{g.label}</div>
             <div className="space-y-2">
-              {g.items.map((it) => <ActivityItem key={it.key} item={it} />)}
+              {g.items.map((it) => <ActivityItem key={it.key} item={it} fresh={it.key === freshKey} />)}
             </div>
           </div>
         ))}
@@ -495,7 +566,7 @@ function ActivitiesTab({ ticket, comments, activity, onCommented }) {
   );
 }
 
-function ActivityItem({ item }) {
+function ActivityItem({ item, fresh }) {
   const TONE = {
     create: { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400', icon: 'plus' },
     stage:  { ring: 'ring-sky-500/30',     bg: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',         icon: 'trendingUp' },
@@ -519,7 +590,11 @@ function ActivityItem({ item }) {
       </div>
 
       <div className="flex-1 pb-4">
-        <div className="rounded-lg border border-gray-100 dark:border-slate-800 hover:border-brand-300 dark:hover:border-brand-500/40 transition p-3 bg-white dark:bg-slate-900/40">
+        <div className={`rounded-lg border transition p-3
+                         hover:border-brand-300 dark:hover:border-brand-500/40
+                         ${fresh
+                           ? 'border-brand-400 dark:border-brand-500/60 bg-brand-50/70 dark:bg-brand-500/10 shadow-[0_0_0_3px_rgba(139,92,246,0.18)] activity-fresh'
+                           : 'border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900/40'}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
@@ -727,7 +802,7 @@ function ReplyComposer({ ticketId, onPosted }) {
 /* =========================================================================
  * RIGHT — Associations
  * =======================================================================*/
-function AssociationsColumn({ ticket, comments }) {
+function AssociationsColumn({ ticket, comments, users, onChange }) {
   const attachments = useMemo(
     () => comments.flatMap((c) =>
       (c.attachments || []).map((a) => ({ ...a, when: c.created_at, by: c.author_name }))
@@ -737,6 +812,27 @@ function AssociationsColumn({ ticket, comments }) {
 
   return (
     <aside className="space-y-4">
+      {/* SLA — live countdown, prominently at the top of the right rail.
+          This replaces the old static "SLA due" entry that used to live at
+          the bottom of the column. */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5 px-0.5">
+          <h3 className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-slate-500">
+            SLA
+          </h3>
+          <SlaBadge
+            dueAt={ticket.sla_due_at}
+            createdAt={ticket.created_at}
+            status={ticket.status}
+            paused={!!ticket.sla_paused_at}
+            size="md"
+          />
+        </div>
+        <SlaCountdown ticket={ticket} />
+      </div>
+
+      <QuickActionsBar ticket={ticket} users={users} onChange={onChange} />
+
       <Section title={`Service Projects (${ticket.project_id ? 1 : 0})`} action="Add" open>
         {ticket.project_id ? (
           <div className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 bg-white dark:bg-slate-900/40">
@@ -812,29 +908,20 @@ function AssociationsColumn({ ticket, comments }) {
         )}
       </Section>
 
-      <Section title="SLA" open>
-        {ticket.sla_due_at ? (
-          <div className="text-xs space-y-2">
-            <KeyValue k="Priority" v={<Badge value={ticket.priority} />} />
-            <KeyValue k="Due" v={
-              <span className={isPast(ticket.sla_due_at) && ticket.status !== 'closed'
-                ? 'text-red-600 dark:text-red-400 font-medium'
-                : 'text-gray-700 dark:text-slate-300'}
-              >
-                {fmtDateTime(ticket.sla_due_at)}
+      {/* Compact SLA / escalation footer — the live countdown lives at the
+          top of this column already, so we just surface priority + level
+          here for cross-reference. */}
+      <Section title="Status snapshot" open>
+        <div className="text-xs space-y-2">
+          <KeyValue k="Priority" v={<Badge value={ticket.priority} />} />
+          {ticket.escalation_level > 0 && (
+            <KeyValue k="Escalation" v={
+              <span className="badge bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300 font-semibold">
+                Level {ticket.escalation_level}
               </span>
-            }/>
-            {ticket.escalation_level > 0 && (
-              <KeyValue k="Escalation" v={
-                <span className="badge bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300 font-semibold">
-                  Level {ticket.escalation_level}
-                </span>
-              } />
-            )}
-          </div>
-        ) : (
-          <Empty hint="No SLA target set." />
-        )}
+            } />
+          )}
+        </div>
       </Section>
     </aside>
   );

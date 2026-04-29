@@ -315,6 +315,17 @@ body {
   .hover-lift { transition: transform .15s ease, box-shadow .15s ease; }
   .hover-lift:hover { transform: translateY(-1px); }
 
+  /* Fresh-event highlight — used by the ticket detail timeline when a new
+     activity / comment arrives over websocket.  Pulses once, then settles. */
+  .activity-fresh {
+    animation: activityFresh 2.4s ease-out 1;
+  }
+  @keyframes activityFresh {
+    0%   { box-shadow: 0 0 0 0   rgba(139, 92, 246, 0.55); }
+    35%  { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0.10); }
+    100% { box-shadow: 0 0 0 3px  rgba(139, 92, 246, 0.18); }
+  }
+
   /* Skeleton shimmer — used for loading states */
   .skeleton {
     background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);

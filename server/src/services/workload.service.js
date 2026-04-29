@@ -46,7 +46,11 @@ exports.engineerLoad = async ({
     WITH open_tix AS (
       SELECT t.assigned_engineer_id AS uid,
              COUNT(*)::int                                                            AS open_total,
-             COUNT(*) FILTER (WHERE t.priority IN ('high','critical'))::int            AS high_priority,
+             COUNT(*) FILTER (WHERE t.priority = 'critical')::int                     AS critical_priority,
+             COUNT(*) FILTER (WHERE t.priority = 'high')::int                         AS high_priority_only,
+             COUNT(*) FILTER (WHERE t.priority IN ('high','critical'))::int           AS high_priority,
+             COUNT(*) FILTER (WHERE t.priority = 'medium')::int                       AS medium_priority,
+             COUNT(*) FILTER (WHERE t.priority = 'low')::int                          AS low_priority,
              COUNT(*) FILTER (
                WHERE t.sla_due_at IS NOT NULL
                  AND t.sla_paused_at IS NULL
@@ -67,10 +71,24 @@ exports.engineerLoad = async ({
       u.id, u.name, u.email, u.role, u.team_id, u.location_id,
       tm.name  AS team_name,
       loc.name AS location_name,
-      COALESCE(o.open_total, 0)    AS open_total,
-      COALESCE(o.high_priority, 0) AS high_priority,
-      COALESCE(o.sla_at_risk, 0)   AS sla_at_risk,
-      COALESCE(o.sla_breached, 0)  AS sla_breached,
+      COALESCE(o.open_total, 0)        AS open_total,
+      COALESCE(o.critical_priority, 0) AS critical_priority,
+      COALESCE(o.high_priority_only,0) AS high_priority_only,
+      COALESCE(o.high_priority, 0)     AS high_priority,
+      COALESCE(o.medium_priority, 0)   AS medium_priority,
+      COALESCE(o.low_priority, 0)      AS low_priority,
+      COALESCE(o.sla_at_risk, 0)       AS sla_at_risk,
+      COALESCE(o.sla_breached, 0)      AS sla_breached,
+      -- Priority-weighted count (critical=4, high=3, medium=2, low=1) — surfaces
+      -- "this engineer is buried in critical work" without baking SLA risk in.
+      (
+        COALESCE(o.critical_priority, 0) * 4
+      + COALESCE(o.high_priority_only,0) * 3
+      + COALESCE(o.medium_priority, 0)   * 2
+      + COALESCE(o.low_priority, 0)      * 1
+      )::int AS weighted_count,
+      -- load_score adds urgency on top of weighted_count: SLA risk and
+      -- breaches push an engineer further down the auto-assign queue.
       (
         COALESCE(o.open_total, 0) * 1.0
       + COALESCE(o.high_priority, 0) * 0.5
