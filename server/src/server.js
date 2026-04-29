@@ -4,6 +4,7 @@ const app = require('./app');
 const { initSocket } = require('./config/socket');
 const { pool } = require('./config/db');
 const retentionJob = require('./jobs/retention.job');
+const slaJob       = require('./jobs/sla.job');
 
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -19,6 +20,7 @@ initSocket(server);
   }
 
   retentionJob.start();
+  slaJob.start();
 
   server.listen(PORT, () => {
     console.log(`[server] running on http://localhost:${PORT}`);

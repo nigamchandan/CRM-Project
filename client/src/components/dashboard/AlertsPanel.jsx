@@ -15,6 +15,9 @@ function daysOverdue(due) {
 }
 
 const TABS = [
+  // SLA risk first: it's the highest-stakes signal — these tickets will
+  // breach within the SLA-warning window if no one acts.
+  { id: 'near_sla_tickets',      label: 'Near SLA Breach',   icon: 'clock',       accent: 'rose'  },
   { id: 'overdue_tasks',         label: 'Overdue Tasks',     icon: 'checkCircle', accent: 'amber' },
   { id: 'high_priority_tickets', label: 'High Priority',     icon: 'ticket',      accent: 'rose'  },
   { id: 'stuck_deals',           label: 'Stuck Deals',       icon: 'briefcase',   accent: 'brand' },
@@ -26,7 +29,11 @@ export default function AlertsPanel({ data, activeTab, onTab }) {
   }
 
   const counts = data.counts || {};
-  const total = (counts.overdue_tasks || 0) + (counts.high_priority_tickets || 0) + (counts.stuck_deals || 0);
+  const total =
+    (counts.near_sla_tickets || 0) +
+    (counts.overdue_tasks || 0) +
+    (counts.high_priority_tickets || 0) +
+    (counts.stuck_deals || 0);
 
   if (total === 0) {
     return (
@@ -72,6 +79,33 @@ export default function AlertsPanel({ data, activeTab, onTab }) {
       </div>
 
       {/* List */}
+      {activeTab === 'near_sla_tickets' && (
+        <List
+          items={data.near_sla_tickets}
+          empty="No tickets in the SLA danger zone — well done."
+          render={(t) => {
+            const mins = Math.max(0, Math.round(Number(t.remaining_minutes || 0)));
+            return (
+              <Link to={`/tickets/${t.id}`} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                <span className="mt-0.5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 text-xs">
+                  <Icon name="clock" className="w-3.5 h-3.5" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                    {t.ticket_no || `#${t.id}`} · {t.subject}
+                  </div>
+                  <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                    SLA in {mins} min
+                    {t.engineer_name && <span className="text-gray-400 dark:text-slate-500 font-normal"> · {t.engineer_name}</span>}
+                    {t.escalation_level > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">L{t.escalation_level}</span>}
+                  </div>
+                </div>
+              </Link>
+            );
+          }}
+        />
+      )}
+
       {activeTab === 'overdue_tasks' && (
         <List
           items={data.overdue_tasks}

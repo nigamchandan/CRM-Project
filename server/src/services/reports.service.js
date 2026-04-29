@@ -539,8 +539,20 @@ exports.myActivity = async (userId, { limit = 10 } = {}) => {
 //   - High-priority open tickets
 //   - "Stuck" deals: not updated in >7 days, not in won/lost stage
 // ---------------------------------------------------------------------------
+/**
+ * Smart-dashboard alert payload.
+ *
+ * Each list is capped at 5 — a "you should look here first" surface, not a
+ * full table. Counts let the UI badge the tabs even when the list is empty.
+ *
+ * Tickets nearing SLA breach uses the same window as the SLA cron's WARN
+ * pass (default 60 minutes) so the dashboard and the cron are looking at
+ * the same set of "danger zone" tickets.
+ */
 exports.alerts = async () => {
-  const [overdueTasks, highPriTickets, stuckDeals] = await Promise.all([
+  const NEAR_SLA_MINUTES = Number(process.env.SLA_WARN_MINUTES || 60);
+
+  const [overdueTasks, highPriTickets, stuckDeals, nearSlaTickets] = await Promise.all([
     query(
       `SELECT t.id, t.title, t.due_date, t.priority, t.status,
               u.name AS assigned_name
@@ -553,12 +565,12 @@ exports.alerts = async () => {
         LIMIT 5`
     ),
     query(
-      `SELECT t.id, t.subject, t.priority, t.status, t.created_at,
+      `SELECT t.id, t.ticket_no, t.subject, t.priority, t.status, t.created_at,
               u.name AS assigned_name
          FROM tickets t
          LEFT JOIN users u ON u.id = t.assigned_to
         WHERE t.status IN ('open','in_progress')
-          AND t.priority = 'high'
+          AND t.priority IN ('high','critical')
         ORDER BY t.created_at ASC
         LIMIT 5`
     ),
@@ -574,15 +586,34 @@ exports.alerts = async () => {
         ORDER BY d.updated_at ASC
         LIMIT 5`
     ),
+    query(
+      `SELECT t.id, t.ticket_no, t.subject, t.priority, t.sla_due_at,
+              t.escalation_level,
+              u.name AS engineer_name,
+              EXTRACT(EPOCH FROM (t.sla_due_at - NOW()))/60 AS remaining_minutes
+         FROM tickets t
+         LEFT JOIN users u ON u.id = t.assigned_engineer_id
+        WHERE t.status NOT IN ('closed','resolved')
+          AND t.sla_paused_at IS NULL
+          AND t.sla_due_at IS NOT NULL
+          AND t.sla_due_at > NOW()
+          AND t.sla_due_at <= NOW() + ($1 || ' minutes')::interval
+        ORDER BY t.sla_due_at ASC
+        LIMIT 5`,
+      [NEAR_SLA_MINUTES]
+    ),
   ]);
+
   return {
     overdue_tasks:          overdueTasks.rows,
     high_priority_tickets:  highPriTickets.rows,
     stuck_deals:            stuckDeals.rows,
+    near_sla_tickets:       nearSlaTickets.rows,
     counts: {
       overdue_tasks:         overdueTasks.rows.length,
       high_priority_tickets: highPriTickets.rows.length,
       stuck_deals:           stuckDeals.rows.length,
+      near_sla_tickets:      nearSlaTickets.rows.length,
     },
   };
 };

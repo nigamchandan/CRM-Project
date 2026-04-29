@@ -56,7 +56,8 @@ export default function AdminDashboard({ previewer }) {
   const [team, setTeam]         = useState([]);
   const [sla, setSla]           = useState(null);
   const [alerts, setAlerts]     = useState(null);
-  const [alertTab, setAlertTab] = useState('overdue_tasks');
+  // SLA-risk first: highest urgency, gets the user's eyes when alerts open.
+  const [alertTab, setAlertTab] = useState('near_sla_tickets');
 
   useEffect(() => {
     let cancelled = false;
@@ -107,9 +108,14 @@ export default function AdminDashboard({ previewer }) {
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
   };
 
-  // Highest-impact alert count for the header banner
+  // Highest-impact alert count for the header banner. SLA-risk tickets are
+  // surfaced separately because they carry the highest urgency.
+  const slaRiskCount = alerts?.counts?.near_sla_tickets || 0;
   const alertCount = alerts?.counts
-    ? (alerts.counts.overdue_tasks || 0) + (alerts.counts.high_priority_tickets || 0) + (alerts.counts.stuck_deals || 0)
+    ? slaRiskCount
+      + (alerts.counts.overdue_tasks || 0)
+      + (alerts.counts.high_priority_tickets || 0)
+      + (alerts.counts.stuck_deals || 0)
     : 0;
 
   return (
@@ -141,6 +147,25 @@ export default function AdminDashboard({ previewer }) {
         </div>
       </div>
 
+      {/* Critical SLA banner — escalated above the regular alert strip
+           because these tickets will breach within the warning window. */}
+      {!loading && slaRiskCount > 0 && (
+        <div className="mb-3 p-4 rounded-xl border border-rose-300 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 flex items-start md:items-center gap-3 flex-col md:flex-row">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 flex items-center justify-center">
+              <Icon name="clock" className="w-5 h-5" />
+            </span>
+            <div className="text-sm text-rose-900 dark:text-rose-200">
+              <span className="font-semibold">{slaRiskCount} ticket{slaRiskCount === 1 ? '' : 's'} about to breach SLA</span>
+              {' '}— act now or they'll auto-escalate to the manager.
+            </div>
+          </div>
+          <a href="#alerts" onClick={() => setAlertTab('near_sla_tickets')} className="text-sm font-medium text-rose-800 dark:text-rose-300 hover:underline whitespace-nowrap">
+            Review now →
+          </a>
+        </div>
+      )}
+
       {/* Alert banner */}
       {!loading && alertCount > 0 && (
         <div className="mb-6 p-4 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 flex items-start md:items-center gap-3 flex-col md:flex-row">
@@ -150,6 +175,7 @@ export default function AdminDashboard({ previewer }) {
             </span>
             <div className="text-sm text-amber-900 dark:text-amber-200">
               <span className="font-semibold">{alertCount} item{alertCount === 1 ? '' : 's'}</span> need your attention —
+              {slaRiskCount > 0 && <>{' '}{slaRiskCount} near-SLA,</>}
               {' '}{alerts.counts.overdue_tasks} overdue task{alerts.counts.overdue_tasks === 1 ? '' : 's'},
               {' '}{alerts.counts.high_priority_tickets} high-priority ticket{alerts.counts.high_priority_tickets === 1 ? '' : 's'},
               {' '}{alerts.counts.stuck_deals} stuck deal{alerts.counts.stuck_deals === 1 ? '' : 's'}.

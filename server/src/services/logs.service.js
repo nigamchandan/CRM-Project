@@ -256,6 +256,15 @@ const SUMMARY = {
   'ticket.comment.internal':  (r, x) => `Added internal note on ticket ${x.target || `#${r.entity_id}`}`,
   'ticket.status':   (r, x) => `Changed ticket ${x.target || `#${r.entity_id}`} status → ${r.meta?.status || ''}`.trim(),
   'ticket.escalate': (r, x) => `Escalated ticket ${x.target || `#${r.entity_id}`}${r.meta?.level ? ` to L${r.meta.level}` : ''}`,
+  'ticket.sla_warning': (r, x) => {
+    const m = r.meta?.remaining_minutes;
+    return `SLA at risk on ticket ${x.target || `#${r.entity_id}`}${m != null ? ` (${m} min remaining)` : ''}`;
+  },
+  'ticket.sla_breach':  (r, x) => {
+    const o = r.meta?.overdue_minutes;
+    const lv = r.meta?.level;
+    return `SLA breached on ticket ${x.target || `#${r.entity_id}`}${o != null ? ` (overdue ${o} min)` : ''}${lv ? ` — auto-escalated to L${lv}` : ''}`;
+  },
   'ticket.stage':    (r, x) => {
     const from = r.meta?.from, to = r.meta?.to;
     if (from && to) return `Moved ticket ${x.target || `#${r.entity_id}`} from "${from}" → "${to}"`;
