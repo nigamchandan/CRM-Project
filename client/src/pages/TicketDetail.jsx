@@ -572,12 +572,26 @@ function CommentsTab({ ticket, comments, onCommented }) {
           </div>
         )}
         {comments.map((c) => (
-          <div key={c.id} className="rounded-lg border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-3">
+          <div
+            key={c.id}
+            className={`rounded-lg border p-3 ${
+              c.is_internal
+                ? 'border-amber-300 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-900/20'
+                : 'border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900/40'
+            }`}
+          >
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <Avatar name={c.author_name} />
                 <div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-slate-200">{c.author_name || 'Unknown'}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-800 dark:text-slate-200">{c.author_name || 'Unknown'}</span>
+                    {c.is_internal && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-amber-200 text-amber-900 dark:bg-amber-800/60 dark:text-amber-200">
+                        Internal note
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-slate-500">{c.author_role}</div>
                 </div>
               </div>
@@ -604,33 +618,77 @@ function CommentsTab({ ticket, comments, onCommented }) {
 }
 
 function ReplyComposer({ ticketId, onPosted }) {
+  // mode === 'reply'    → public, customer-visible reply
+  // mode === 'internal' → internal note (visible only to staff). Tinted amber
+  //                       to match the rendered note style and signal "off-record".
+  const [mode, setMode]       = useState('reply');
   const [body, setBody]       = useState('');
   const [files, setFiles]     = useState([]);
   const [sending, setSending] = useState(false);
   const taRef = useRef(null);
 
   const canSend = body.trim().length > 0 || files.length > 0;
+  const isInternal = mode === 'internal';
 
   const send = async (e) => {
     if (e) e.preventDefault();
     if (!canSend) return toast.error('Type a message or attach a file before sending.');
     setSending(true);
     try {
-      await ticketsService.addComment(ticketId, body, files);
+      await ticketsService.addComment(ticketId, body, files, { is_internal: isInternal });
       setBody(''); setFiles([]);
-      toast.success('Reply sent');
+      toast.success(isInternal ? 'Internal note added' : 'Reply sent');
       onPosted?.();
-    } catch { toast.error('Failed to send'); } finally { setSending(false); }
+    } catch { toast.error(isInternal ? 'Failed to save note' : 'Failed to send'); }
+    finally { setSending(false); }
   };
 
   return (
-    <form onSubmit={send} className="rounded-lg border border-gray-200 dark:border-slate-700 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/20 transition bg-white dark:bg-slate-900">
+    <form
+      onSubmit={send}
+      className={`rounded-lg border focus-within:ring-2 transition ${
+        isInternal
+          ? 'border-amber-300 bg-amber-50/70 focus-within:border-amber-400 focus-within:ring-amber-400/30 dark:border-amber-800 dark:bg-amber-900/15'
+          : 'border-gray-200 bg-white focus-within:border-brand-400 focus-within:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900'
+      }`}
+    >
+      {/* Mode toggle — segmented control */}
+      <div className="flex items-center gap-1 px-2 pt-2">
+        {[
+          { id: 'reply',    label: 'Reply to customer', tone: 'brand' },
+          { id: 'internal', label: 'Internal note',     tone: 'amber' },
+        ].map((opt) => {
+          const active = mode === opt.id;
+          const cls = active
+            ? (opt.tone === 'amber'
+                ? 'bg-amber-200 text-amber-900 dark:bg-amber-800/60 dark:text-amber-100'
+                : 'bg-brand-600 text-white')
+            : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800';
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setMode(opt.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${cls}`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+        {isInternal && (
+          <span className="ml-auto text-[10px] uppercase tracking-wider font-semibold text-amber-800 dark:text-amber-300">
+            Visible to staff only
+          </span>
+        )}
+      </div>
       <textarea
         ref={taRef}
         id="reply-composer"
         className="w-full bg-transparent border-0 px-3 py-2.5 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none resize-none"
         rows={3}
-        placeholder="Write a note or reply…  (Ctrl/⌘ + Enter to send)"
+        placeholder={isInternal
+          ? 'Add an internal note (root cause, runbook link, escalation context)…  (Ctrl/⌘ + Enter to save)'
+          : 'Write a reply to the customer…  (Ctrl/⌘ + Enter to send)'}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
@@ -654,9 +712,11 @@ function ReplyComposer({ ticketId, onPosted }) {
           <button
             type="submit"
             disabled={sending || !canSend}
-            className="btn-primary !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`!py-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isInternal ? 'btn-secondary' : 'btn-primary'
+            }`}
           >
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? 'Saving…' : (isInternal ? 'Add note' : 'Send')}
           </button>
         </div>
       </div>

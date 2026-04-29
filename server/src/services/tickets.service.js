@@ -586,24 +586,42 @@ exports.escalate = async (id) => {
 
 exports.remove = async (id) => { await query('DELETE FROM tickets WHERE id = $1', [id]); };
 
-/* ------------------------------------------------------------ COMMENTS ----- */
+/* ------------------------------------------------------------ COMMENTS -----
+ *  Two flavours of comment live in the same table:
+ *    - is_internal=true  → "internal note", visible only to staff
+ *      (admin / manager / engineer / user). Used for triage chatter,
+ *      links to runbooks, root-cause discussion.
+ *    - is_internal=false → customer-visible reply. Eventually rendered in
+ *      a customer portal / outbound email; today it's the public timeline.
+ *
+ *  The viewer's role gates visibility. Engineers/managers/admins see both;
+ *  any future "customer" / "external" role would only see public ones.
+ *  We deliberately scope at the service layer so every read-path inherits
+ *  the rule for free.
+ */
 
-exports.listComments = async (ticketId) => {
+const STAFF_ROLES = new Set(['admin', 'manager', 'engineer', 'user']);
+
+exports.listComments = async (ticketId, currentUser = null) => {
+  // Staff see everything; external viewers only see public replies.
+  // (No external role today; this is forward-compatible with a portal.)
+  const includeInternal = !currentUser || STAFF_ROLES.has(currentUser.role);
+  const where = includeInternal ? '' : 'AND tc.is_internal = FALSE';
   const { rows } = await query(
     `SELECT tc.*, u.name AS author_name, u.email AS author_email, u.role AS author_role
        FROM ticket_comments tc
        LEFT JOIN users u ON u.id = tc.author_id
-      WHERE tc.ticket_id = $1
+      WHERE tc.ticket_id = $1 ${where}
       ORDER BY tc.created_at ASC`, [ticketId]
   );
   return rows;
 };
 
-exports.addComment = async (ticketId, { author_id, body, attachments = [] }) => {
+exports.addComment = async (ticketId, { author_id, body, attachments = [], is_internal = false }) => {
   const { rows } = await query(
-    `INSERT INTO ticket_comments (ticket_id,author_id,body,attachments)
-     VALUES ($1,$2,$3,$4) RETURNING *`,
-    [ticketId, author_id, body, JSON.stringify(attachments)]
+    `INSERT INTO ticket_comments (ticket_id, author_id, body, attachments, is_internal)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [ticketId, author_id, body, JSON.stringify(attachments), Boolean(is_internal)]
   );
   return rows[0];
 };

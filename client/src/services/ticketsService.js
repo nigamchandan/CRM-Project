@@ -15,9 +15,10 @@ export const remove  = (id)     => api.delete(`/tickets/${id}`).then(r => r.data
 export const listActivity = (id) => api.get(`/tickets/${id}/activity`).then(r => r.data);
 
 export const listComments = (id) => api.get(`/tickets/${id}/comments`).then(r => r.data);
-export const addComment = (id, body, files = []) => {
+export const addComment = (id, body, files = [], opts = {}) => {
   const fd = new FormData();
   fd.append('body', body);
+  if (opts.is_internal) fd.append('is_internal', 'true');
   files.forEach((f) => fd.append('files', f));
   return api.post(`/tickets/${id}/comments`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' },

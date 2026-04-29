@@ -293,7 +293,7 @@ exports.listActivity = async (req, res, next) => {
 exports.listComments = async (req, res, next) => {
   try {
     if (!(await resolveAccessible(req, res))) return;
-    res.json(await service.listComments(req.params.id));
+    res.json(await service.listComments(req.params.id, req.user));
   } catch (e) { next(e); }
 };
 exports.addComment = async (req, res, next) => {
@@ -303,10 +303,22 @@ exports.addComment = async (req, res, next) => {
       filename: f.filename, original_name: f.originalname, size: f.size, mimetype: f.mimetype,
       url: `/uploads/${f.filename}`,
     }));
+    // Coerce the multipart string ("true" / "false") into a real boolean.
+    const isInternal = req.body.is_internal === true
+      || req.body.is_internal === 'true'
+      || req.body.is_internal === '1';
     const r = await service.addComment(req.params.id, {
-      author_id: req.user.id, body: req.body.body, attachments,
+      author_id: req.user.id,
+      body: req.body.body,
+      attachments,
+      is_internal: isInternal,
     });
-    await writeLog({ req, userId: req.user.id, action: 'ticket.comment', entity: 'tickets', entityId: req.params.id });
+    await writeLog({
+      req, userId: req.user.id,
+      action: isInternal ? 'ticket.comment.internal' : 'ticket.comment',
+      entity: 'tickets', entityId: req.params.id,
+      meta: { is_internal: isInternal },
+    });
     emitBroadcast('ticket:comment', { ticket_id: Number(req.params.id), comment: r });
     res.status(201).json(r);
   } catch (e) { next(e); }
