@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, CartesianGrid, Area, AreaChart,
+  PieChart, Pie, Cell, Sector, Legend, CartesianGrid, Area, AreaChart,
 } from 'recharts';
 import * as reportsService from '../../services/reportsService';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -20,11 +20,31 @@ import NextActions from './NextActions.jsx';
 import { SkeletonCard, SkeletonBlock, SkeletonList } from '../ui/Skeleton.jsx';
 import Icon from '../ui/Icon.jsx';
 
-const PIE_COLORS = ['#6366f1', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#14b8a6', '#ec4899'];
+const PIE_COLORS = ['#8b5cf6', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#14b8a6', '#ec4899'];
+
+// Hovered donut slice — same arc, slightly fatter, with a brand glow.
+// Recharts calls this with the current sector geometry on every mouseenter.
+function DashActiveSlice(props) {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+  return (
+    <g style={{ filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.55))' }}>
+      <Sector
+        cx={cx} cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 4}
+        startAngle={startAngle} endAngle={endAngle}
+        fill={fill}
+        cornerRadius={6}
+        stroke="#0b1020"
+        strokeWidth={3}
+      />
+    </g>
+  );
+}
 
 function SectionCard({ title, subtitle, right, children, className = '' }) {
   return (
-    <div className={`card p-5 ${className}`}>
+    <div className={`card card-hover p-5 ${className}`}>
       <div className="flex items-start justify-between mb-4 gap-3">
         <div className="min-w-0">
           <h3 className="section-title">{title}</h3>
@@ -93,21 +113,26 @@ export default function AdminDashboard({ previewer }) {
 
   // Theme-aware chart colors
   const chartTheme = useMemo(() => ({
-    grid:          isDark ? '#1e293b' : '#f1f5f9',
+    grid:          isDark ? 'rgba(148,163,184,0.18)' : '#f1f5f9',
     axis:          isDark ? '#64748b' : '#94a3b8',
-    tooltipBg:     isDark ? '#1e293b' : '#ffffff',
-    tooltipBorder: isDark ? '#334155' : '#e5e7eb',
-    tooltipText:   isDark ? '#e2e8f0' : '#0f172a',
   }), [isDark]);
 
+  // Branded dark tooltip — matches `.chart-tooltip` in index.css.  We keep
+  // the inline style alongside so existing Recharts <Tooltip contentStyle>
+  // call-sites read the same, even when the custom <ChartTooltip /> isn't
+  // wired up.
   const tooltipStyle = {
-    backgroundColor: chartTheme.tooltipBg,
-    border: `1px solid ${chartTheme.tooltipBorder}`,
-    borderRadius: 10,
+    backgroundColor: '#111827',
+    border: '1px solid rgba(139,92,246,0.40)',
+    borderRadius: 8,
+    padding: '10px 12px',
     fontSize: 12,
-    color: chartTheme.tooltipText,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    color: '#ffffff',
+    boxShadow: '0 8px 20px rgba(0,0,0,0.40)',
+    outline: 'none',
   };
+  const tooltipLabelStyle = { color: '#ffffff', fontWeight: 600, marginBottom: 2 };
+  const tooltipItemStyle  = { color: '#c4b5fd' };
 
   // Highest-impact alert count for the header banner. SLA-risk tickets are
   // surfaced separately because they carry the highest urgency.
@@ -259,8 +284,8 @@ export default function AdminDashboard({ previewer }) {
                 <AreaChart data={trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={isDark ? 0.55 : 0.4} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={isDark ? 0.55 : 0.4} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
@@ -268,10 +293,12 @@ export default function AdminDashboard({ previewer }) {
                   <YAxis tick={{ fontSize: 12, fill: chartTheme.axis }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    cursor={{ stroke: chartTheme.grid }}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                    cursor={{ stroke: 'rgba(139,92,246,0.35)' }}
                     formatter={(v) => [`$${Number(v).toLocaleString()}`, 'Revenue']}
                   />
-                  <Area type="monotone" dataKey="total_value" stroke="#6366f1" strokeWidth={2.5} fill="url(#revGrad)" />
+                  <Area type="monotone" dataKey="total_value" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#revGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -282,21 +309,31 @@ export default function AdminDashboard({ previewer }) {
           {loading ? <SkeletonBlock h={280} className="!p-0 !shadow-none !border-0" /> : (
             <div style={{ height: 280 }}>
               <ResponsiveContainer>
-                <PieChart>
+                <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                   <Pie
                     data={leads}
                     dataKey="count"
                     nameKey="status"
-                    innerRadius={50}
-                    outerRadius={84}
-                    paddingAngle={3}
-                    stroke={isDark ? '#0f172a' : '#ffffff'}
-                    strokeWidth={2}
+                    innerRadius="55%"
+                    outerRadius="78%"
+                    paddingAngle={2}
+                    cornerRadius={6}
+                    stroke={isDark ? '#0b1020' : '#ffffff'}
+                    strokeWidth={3}
+                    activeShape={DashActiveSlice}
+                    isAnimationActive
                   >
                     {leads.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Legend iconSize={8} wrapperStyle={{ fontSize: 12, color: chartTheme.axis }} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: chartTheme.axis }} />
+                  <Tooltip
+                    cursor={false}
+                    wrapperStyle={{ outline: 'none', zIndex: 50 }}
+                    contentStyle={tooltipStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                    formatter={(v, n) => [`${Number(v).toLocaleString()} leads`, n]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>

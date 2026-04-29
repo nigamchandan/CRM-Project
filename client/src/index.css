@@ -62,19 +62,20 @@ body {
   }
   .btn:active { transform: translateY(0.5px); }
 
-  /* The Stripe-style primary CTA: gradient fill, soft indigo glow, inset highlight. */
+  /* Primary CTA — uses the brand violet→indigo gradient (matches the Logo)
+     with a soft purple glow + an inset top highlight for a "lit" finish. */
   .btn-primary {
     @apply btn text-white disabled:opacity-60 disabled:cursor-not-allowed
            focus:ring-brand-200 dark:focus:ring-brand-500/40;
-    background-image: linear-gradient(180deg, #7a73ff 0%, #635bff 100%);
+    background-image: linear-gradient(180deg, #8b5cf6 0%, #6366f1 100%);
     box-shadow: 0 1px 2px 0 rgba(16,24,40,0.05),
-                0 4px 12px -2px rgba(99,91,255,0.35),
+                0 4px 12px -2px rgba(139,92,246,0.35),
                 inset 0 1px 0 0 rgba(255,255,255,0.18);
   }
   .btn-primary:hover:not(:disabled) {
-    background-image: linear-gradient(180deg, #8985ff 0%, #6f67ff 100%);
+    background-image: linear-gradient(180deg, #9b71f8 0%, #7378f5 100%);
     box-shadow: 0 1px 2px 0 rgba(16,24,40,0.05),
-                0 6px 16px -2px rgba(99,91,255,0.45),
+                0 6px 16px -2px rgba(139,92,246,0.45),
                 inset 0 1px 0 0 rgba(255,255,255,0.22);
   }
 
@@ -129,19 +130,93 @@ body {
   .label { @apply block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5; }
 
   /* ---------- Cards ------------------------------------------------------ */
-  /* Hairline border + soft shadow + rounded-2xl is the "Stripe card" look. */
+  /* Hairline border + soft shadow + rounded-2xl is the "Stripe card" look.
+     We layer a subtle 145° gradient on every card so surfaces feel
+     sculpted instead of flat — light mode goes white → page-tint, dark
+     mode goes slate → near-black.  Pairs with the brand gradient + the
+     "no pure white blocks" rule from the design spec. */
   .card {
-    @apply rounded-2xl bg-white border border-gray-100 shadow-card
-           dark:bg-[#13131e] dark:border-slate-800/80 dark:shadow-card-dark;
+    @apply rounded-2xl border border-gray-100 shadow-card
+           dark:border-slate-800/70 dark:shadow-card-dark;
+    background-image: linear-gradient(145deg, #ffffff 0%, #f6f9fc 100%);
+  }
+  .dark .card {
+    background-image: linear-gradient(145deg, rgba(15,23,42,0.92), rgba(2,6,23,0.92));
   }
   .card-elevated {
     @apply card shadow-card-hover;
   }
-  .card-interactive {
-    @apply card cursor-pointer;
+  /* Whole-card hover lift — subtle but premium. Used on KPIs and chart
+     cards.  Honours `prefers-reduced-motion` via the global * transition. */
+  .card-hover {
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
   }
-  .card-interactive:hover {
-    @apply shadow-card-hover -translate-y-px;
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.45),
+                0 0 0 1px rgba(139,92,246,0.18);
+  }
+  .card-interactive {
+    @apply card card-hover cursor-pointer;
+  }
+
+  /* ---------- Sidebar nav item (premium SaaS) ---------------------------- */
+  /*
+   *  Layout:   icon · label · (optional badge)
+   *  States:   default · hover · active
+   *  Active:   90° brand gradient wash + glow, 3px gradient bar via ::before,
+   *            light-purple icon, white bold label (dark mode) or
+   *            brand-800 label (light mode), 2px slide-in.
+   *  Hover:    soft brand tint, 4px slide-in, icon glow.
+   * --------------------------------------------------------------------- */
+  .nav-item {
+    @apply relative flex items-center gap-3 px-2.5 py-2 rounded-lg
+           text-[13px] cursor-pointer select-none;
+    color: #4b5563; /* gray-600 in light mode */
+    transition: background-color .2s ease, color .2s ease,
+                transform .2s ease, box-shadow .2s ease;
+  }
+  .dark .nav-item { color: #94a3b8; /* slate-400 */ }
+
+  .nav-item:hover {
+    background-color: rgba(139, 92, 246, 0.08);
+    transform: translateX(4px);
+    color: #6d28d9; /* brand-800 */
+  }
+  .dark .nav-item:hover { color: #ffffff; }
+  .nav-item:hover svg { color: #a78bfa; }
+  .nav-item:active { transform: translateX(3px) scale(0.98); }
+
+  /* ----- Active state ----- */
+  .nav-item--active {
+    background-image: linear-gradient(90deg,
+                                      rgba(139, 92, 246, 0.18) 0%,
+                                      rgba(99, 102, 241, 0.10) 100%);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25),
+                inset 0 0 0 1px rgba(139, 92, 246, 0.10);
+    transform: translateX(2px);
+    color: #312e81; /* indigo-900 — readable on light sidebar */
+  }
+  .dark .nav-item--active { color: #ffffff; }
+  .nav-item--active span.nav-label { font-weight: 600; }
+  .nav-item--active svg { color: #8b5cf6; }
+  .dark .nav-item--active svg { color: #a78bfa; }
+  .nav-item--active:hover { transform: translateX(4px); }
+
+  /* The 3px left bar that announces the active page. */
+  .nav-item--active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #8b5cf6 0%, #6366f1 100%);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
   }
 
   /* ---------- Badges ----------------------------------------------------- */
@@ -181,7 +256,7 @@ body {
 
   /* ---------- KPI tile (used on dashboards) ------------------------------ */
   .kpi {
-    @apply card p-5 hover:shadow-card-hover transition;
+    @apply card card-hover p-5;
   }
   .kpi-label { @apply text-[11px] uppercase tracking-wider font-medium text-gray-500 dark:text-slate-400; }
   .kpi-value { @apply mt-1.5 text-3xl font-semibold tracking-tight text-gray-900 dark:text-slate-50; }
@@ -190,12 +265,50 @@ body {
 }
 
 @layer utilities {
-  /* Brand gradient text — used sparingly for marketing-y headings. */
+  /* Brand gradient text — used sparingly for marketing-y headings.
+     Matches the brand mark gradient so wordmarks read as a continuation
+     of the logo. */
   .gradient-text {
-    background: linear-gradient(135deg, #635bff 0%, #8b6cf5 50%, #b66cf5 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+  }
+
+  /* ---------- Chart tooltip (Recharts) -----------------------------------
+   *  Shared visual language for every Recharts tooltip in the app:
+   *    - dark slate background that pops on light *and* dark themes
+   *    - soft purple ring matching the brand
+   *    - large drop shadow for elevation against busy chart bodies
+   *  Used by the <ChartTooltip> custom content.
+   * --------------------------------------------------------------------- */
+  .chart-tooltip {
+    background: #111827;
+    border: 1px solid rgba(139, 92, 246, 0.40);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.40);
+    color: #ffffff;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .chart-tooltip__label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #ffffff;
+    text-transform: capitalize;
+  }
+  .chart-tooltip__row {
+    display: flex; align-items: center; gap: 8px;
+    color: #c4b5fd;
+  }
+  .chart-tooltip__swatch {
+    width: 8px; height: 8px; border-radius: 2px;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .chart-tooltip__value {
+    color: #ffffff;
+    font-weight: 600;
   }
 
   /* Hover-lift utility — pairs with .transition-transform on cards/buttons */

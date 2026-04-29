@@ -5,11 +5,66 @@ import * as teamsService   from '../services/teamsService';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, Sector,
   XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer,
 } from 'recharts';
 
-const COLORS = ['#6366f1', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#14b8a6', '#ec4899'];
+// Brand-aligned palette: violet/indigo lead so the first slice always reads
+// as "the brand", with warm + cool accents trailing for variety.
+const COLORS = ['#8b5cf6', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#14b8a6', '#ec4899'];
+
+/* ---------------------------------------------------------------------------
+ *  ChartTooltip — shared dark-on-purple tooltip used across every Recharts
+ *  visualisation in the app.  Replaces the default light pop-over which
+ *  becomes invisible on dark backgrounds.
+ *
+ *  Each entry shows the series name, a tiny color swatch and the value with
+ *  an optional unit (e.g. "leads", "deals", "$1,200").  The whole panel is
+ *  styled in index.css under `.chart-tooltip` so other charts can reuse it.
+ * ----------------------------------------------------------------------- */
+function ChartTooltip({ active, payload, label, unit, valueFormatter }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="chart-tooltip">
+      {label != null && (
+        <div className="chart-tooltip__label">{String(label)}</div>
+      )}
+      {payload.map((p, i) => {
+        const swatch = p.color || p.payload?.fill || p.fill || '#a78bfa';
+        const v = valueFormatter ? valueFormatter(p.value, p) : Number(p.value).toLocaleString();
+        return (
+          <div key={i} className="chart-tooltip__row">
+            <span className="chart-tooltip__swatch" style={{ background: swatch, color: swatch }} />
+            <span style={{ color: '#cbd5e1' }}>{p.name || p.payload?.name}</span>
+            <span className="chart-tooltip__value" style={{ marginLeft: 'auto' }}>
+              {v}{unit ? ` ${unit}` : ''}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Active-slice shape — same arc but with a brand-colored shadow + a few px
+   wider, so hovered slices feel "lifted" without breaking the donut ring. */
+function ActiveDonutSlice(props) {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+  return (
+    <g style={{ filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.55))' }}>
+      <Sector
+        cx={cx} cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 5}
+        startAngle={startAngle} endAngle={endAngle}
+        fill={fill}
+        cornerRadius={6}
+        stroke="#0b1020"
+        strokeWidth={3}
+      />
+    </g>
+  );
+}
 
 /* ----- Date helpers (mirror Logs.jsx so dates round-trip cleanly) ------- */
 const localDay = (d) => {
@@ -256,15 +311,34 @@ export default function Reports() {
         >
           <div style={{ height: 280 }}>
             <ResponsiveContainer>
-              <PieChart>
+              <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                 <Pie
-                  data={leads} dataKey="count" nameKey="status" outerRadius={90} label
+                  data={leads}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius="55%"
+                  outerRadius="78%"
+                  paddingAngle={2}
+                  cornerRadius={6}
+                  stroke="#0b1020"
+                  strokeWidth={3}
+                  activeShape={ActiveDonutSlice}
                   onClick={(slice) => slice?.status && drillIntoLeadStatus(slice.status)}
                   cursor="pointer"
+                  isAnimationActive
                 >
                   {leads.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Legend /><Tooltip />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+                <Tooltip
+                  cursor={false}
+                  position={undefined}
+                  wrapperStyle={{ outline: 'none', zIndex: 50 }}
+                  content={<ChartTooltip unit="leads" />}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -286,10 +360,15 @@ export default function Reports() {
         >
           <div style={{ height: 280 }}>
             <ResponsiveContainer>
-              <BarChart data={deals}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} /><Tooltip />
+              <BarChart data={deals} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'currentColor' }} />
+                <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(139,92,246,0.08)' }}
+                  wrapperStyle={{ outline: 'none', zIndex: 50 }}
+                  content={<ChartTooltip unit="deals" />}
+                />
                 <Bar
                   dataKey="count" fill="#8b5cf6" radius={[6, 6, 0, 0]}
                   onClick={(d) => drillIntoDealStage(d?.payload || d)}
@@ -317,11 +396,28 @@ export default function Reports() {
         >
           <div style={{ height: 300 }}>
             <ResponsiveContainer>
-              <LineChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} /><Tooltip />
-                <Line type="monotone" dataKey="total_value" stroke="#10b981" strokeWidth={2} />
+              <LineChart data={trend} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'currentColor' }} />
+                <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} />
+                <Tooltip
+                  cursor={{ stroke: 'rgba(139,92,246,0.35)' }}
+                  wrapperStyle={{ outline: 'none', zIndex: 50 }}
+                  content={
+                    <ChartTooltip
+                      unit=""
+                      valueFormatter={(v) => `$${Number(v).toLocaleString()}`}
+                    />
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total_value"
+                  stroke="#8b5cf6"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: '#a78bfa', stroke: '#fff', strokeWidth: 2 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -340,10 +436,10 @@ export default function Reports() {
 /* ====================================================================== */
 function ChartCard({ title, hint, onExport, children, className = '' }) {
   return (
-    <div className={`card p-5 ${className}`}>
+    <div className={`card card-hover p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <h3 className="font-semibold">{title}</h3>
+          <h3 className="font-semibold tracking-tight">{title}</h3>
           {hint && <p className="text-[11px] text-gray-500 dark:text-slate-400">{hint}</p>}
         </div>
         {onExport && (
