@@ -1,10 +1,23 @@
 const service = require('../services/reports.service');
 
 exports.dashboard = async (req, res, next) => { try { res.json(await service.dashboard()); } catch (e) { next(e); } };
-exports.leadsByStatus = async (req, res, next) => { try { res.json(await service.leadsByStatus()); } catch (e) { next(e); } };
-exports.dealsByStage = async (req, res, next) => { try { res.json(await service.dealsByStage()); } catch (e) { next(e); } };
-exports.ticketsResolution = async (req, res, next) => { try { res.json(await service.ticketsResolution()); } catch (e) { next(e); } };
-exports.revenueTrend = async (req, res, next) => { try { res.json(await service.revenueTrend()); } catch (e) { next(e); } };
+// Filter params (from / to / team_id) flow through unchanged so the
+// service is the single place that owns the SQL.
+exports.leadsByStatus     = async (req, res, next) => { try { res.json(await service.leadsByStatus(req.query));     } catch (e) { next(e); } };
+exports.dealsByStage      = async (req, res, next) => { try { res.json(await service.dealsByStage(req.query));      } catch (e) { next(e); } };
+exports.ticketsResolution = async (req, res, next) => { try { res.json(await service.ticketsResolution(req.query)); } catch (e) { next(e); } };
+exports.revenueTrend      = async (req, res, next) => { try { res.json(await service.revenueTrend(req.query));      } catch (e) { next(e); } };
+
+// Drill-downs — caller supplies the slice (status/stage_id) plus the
+// same filter set; we return up to 50 underlying rows.
+exports.leadsForStatus = async (req, res, next) => {
+  try { res.json(await service.leadsForStatus(req.params.status, req.query)); }
+  catch (e) { next(e); }
+};
+exports.dealsForStage = async (req, res, next) => {
+  try { res.json(await service.dealsForStage(req.params.stageId, req.query)); }
+  catch (e) { next(e); }
+};
 exports.recentActivity = async (req, res, next) => { try { res.json(await service.recentActivity(req.query)); } catch (e) { next(e); } };
 exports.upcomingTasks = async (req, res, next) => { try { res.json(await service.upcomingTasks(req.query)); } catch (e) { next(e); } };
 exports.salesFunnel = async (req, res, next) => { try { res.json(await service.salesFunnel()); } catch (e) { next(e); } };

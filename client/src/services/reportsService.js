@@ -1,10 +1,13 @@
 import api from './api';
 
 export const dashboard        = () => api.get('/reports/dashboard').then(r => r.data);
-export const leadsByStatus    = () => api.get('/reports/leads-by-status').then(r => r.data);
-export const dealsByStage     = () => api.get('/reports/deals-by-stage').then(r => r.data);
-export const ticketsResolution = () => api.get('/reports/tickets-resolution').then(r => r.data);
-export const revenueTrend     = () => api.get('/reports/revenue-trend').then(r => r.data);
+export const leadsByStatus    = (params)  => api.get('/reports/leads-by-status',    { params }).then(r => r.data);
+export const dealsByStage     = (params)  => api.get('/reports/deals-by-stage',     { params }).then(r => r.data);
+export const ticketsResolution = (params) => api.get('/reports/tickets-resolution', { params }).then(r => r.data);
+export const revenueTrend     = (params)  => api.get('/reports/revenue-trend',      { params }).then(r => r.data);
+// Drill-downs (clicking a chart slice).
+export const leadsForStatus   = (status, params) => api.get(`/reports/leads-by-status/${encodeURIComponent(status)}`, { params }).then(r => r.data);
+export const dealsForStage    = (stageId, params) => api.get(`/reports/deals-by-stage/${stageId}`, { params }).then(r => r.data);
 export const recentActivity   = (params) => api.get('/reports/recent-activity', { params }).then(r => r.data);
 export const upcomingTasks    = (params) => api.get('/reports/upcoming-tasks', { params }).then(r => r.data);
 export const salesFunnel      = () => api.get('/reports/sales-funnel').then(r => r.data);

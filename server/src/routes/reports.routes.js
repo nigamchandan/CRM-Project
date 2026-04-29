@@ -8,6 +8,9 @@ router.get('/leads-by-status', ctrl.leadsByStatus);
 router.get('/deals-by-stage', ctrl.dealsByStage);
 router.get('/tickets-resolution', ctrl.ticketsResolution);
 router.get('/revenue-trend', ctrl.revenueTrend);
+// Drill-downs — list the records that make up a single chart slice.
+router.get('/leads-by-status/:status', ctrl.leadsForStatus);
+router.get('/deals-by-stage/:stageId', ctrl.dealsForStage);
 router.get('/recent-activity', ctrl.recentActivity);
 router.get('/upcoming-tasks', ctrl.upcomingTasks);
 router.get('/sales-funnel', ctrl.salesFunnel);

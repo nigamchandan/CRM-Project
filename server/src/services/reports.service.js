@@ -93,43 +93,154 @@ exports.salesFunnel = async () => {
   return rows;
 };
 
-exports.leadsByStatus = async () => {
-  const { rows } = await query(`SELECT status, COUNT(*)::int AS count FROM leads GROUP BY status ORDER BY status`);
+/* ---------------------------------------------------------------------
+ *  Filter helpers shared by the four "primary" report queries.
+ *
+ *  All four accept an optional { from, to, team_id } and translate them
+ *  into a SQL fragment scoped to the relevant date column. The frontend
+ *  passes ISO strings (the same convention as the Audit Logs page).
+ *
+ *  When `team_id` is given:
+ *    - leads filter on the assigned-user's team
+ *    - deals filter on the owner's team
+ *    - tickets filter directly on tickets.team_id
+ * ------------------------------------------------------------------- */
+function appendDateRange(where, params, col, from, to) {
+  if (from) { params.push(from); where.push(`${col} >= $${params.length}::timestamptz`); }
+  if (to)   { params.push(to);   where.push(`${col} <= $${params.length}::timestamptz`); }
+}
+
+exports.leadsByStatus = async ({ from, to, team_id } = {}) => {
+  const params = [];
+  const where  = [];
+  appendDateRange(where, params, 'l.created_at', from, to);
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`u.team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT l.status, COUNT(*)::int AS count
+      FROM leads l
+      LEFT JOIN users u ON u.id = l.assigned_to
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     GROUP BY l.status
+     ORDER BY l.status`;
+  const { rows } = await query(sql, params);
   return rows;
 };
 
-exports.dealsByStage = async () => {
-  const { rows } = await query(
-    `SELECT s.id, s.name, s.color, COUNT(d.id)::int AS count, COALESCE(SUM(d.value),0)::float AS total_value
-     FROM pipeline_stages s LEFT JOIN deals d ON d.stage_id = s.id
-     GROUP BY s.id ORDER BY s.position ASC`
-  );
+exports.dealsByStage = async ({ from, to, team_id } = {}) => {
+  const params = [];
+  const where  = [];
+  appendDateRange(where, params, 'd.created_at', from, to);
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`u.team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT s.id, s.name, s.color,
+           COUNT(d.id)::int AS count,
+           COALESCE(SUM(d.value),0)::float AS total_value
+      FROM pipeline_stages s
+      LEFT JOIN deals d ON d.stage_id = s.id
+        ${where.length ? 'AND ' + where.join(' AND ') : ''}
+      LEFT JOIN users u ON u.id = d.owner_id
+     GROUP BY s.id
+     ORDER BY s.position ASC`;
+  const { rows } = await query(sql, params);
   return rows;
 };
 
-exports.ticketsResolution = async () => {
-  const { rows } = await query(
-    `SELECT
+exports.ticketsResolution = async ({ from, to, team_id } = {}) => {
+  const params = [];
+  const where  = [];
+  appendDateRange(where, params, 'created_at', from, to);
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT
        COUNT(*)::int AS total,
        COUNT(*) FILTER (WHERE status='open')::int AS open_count,
        COUNT(*) FILTER (WHERE status='in_progress')::int AS in_progress_count,
        COUNT(*) FILTER (WHERE status='resolved')::int AS resolved_count,
        COUNT(*) FILTER (WHERE status='closed')::int AS closed_count,
        COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at))/3600) FILTER (WHERE resolved_at IS NOT NULL), 0)::float AS avg_resolution_hours
-     FROM tickets`
-  );
+      FROM tickets
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
+  const { rows } = await query(sql, params);
   return rows[0];
 };
 
-exports.revenueTrend = async () => {
-  const { rows } = await query(
-    `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
-            COALESCE(SUM(value),0)::float AS total_value,
-            COUNT(*)::int AS deals
-     FROM deals
-     WHERE created_at > NOW() - INTERVAL '12 months'
-     GROUP BY 1 ORDER BY 1 ASC`
-  );
+exports.revenueTrend = async ({ from, to, team_id } = {}) => {
+  const params = [];
+  // Default window: last 12 months when caller didn't constrain it.
+  const where  = [`d.created_at > COALESCE($1::timestamptz, NOW() - INTERVAL '12 months')`];
+  params.push(from || null);
+  if (to) {
+    params.push(to);
+    where.push(`d.created_at <= $${params.length}::timestamptz`);
+  }
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`u.team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT to_char(date_trunc('month', d.created_at), 'YYYY-MM') AS month,
+           COALESCE(SUM(d.value),0)::float AS total_value,
+           COUNT(*)::int AS deals
+      FROM deals d
+      LEFT JOIN users u ON u.id = d.owner_id
+     WHERE ${where.join(' AND ')}
+     GROUP BY 1
+     ORDER BY 1 ASC`;
+  const { rows } = await query(sql, params);
+  return rows;
+};
+
+/* ---------------------------------------------------------------------
+ *  Drill-down endpoints. Used by the Reports page when the user clicks a
+ *  pie slice / bar — we return a small (max 50 row) listing of the
+ *  underlying records so the chart isn't a dead-end.
+ * ------------------------------------------------------------------- */
+exports.leadsForStatus = async (status, { from, to, team_id } = {}) => {
+  const params = [String(status)];
+  const where  = ['l.status = $1'];
+  appendDateRange(where, params, 'l.created_at', from, to);
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`u.team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT l.id, l.name, l.company, l.value, l.created_at,
+           u.name AS owner_name
+      FROM leads l
+      LEFT JOIN users u ON u.id = l.assigned_to
+     WHERE ${where.join(' AND ')}
+     ORDER BY l.created_at DESC
+     LIMIT 50`;
+  const { rows } = await query(sql, params);
+  return rows;
+};
+
+exports.dealsForStage = async (stageId, { from, to, team_id } = {}) => {
+  const params = [Number(stageId)];
+  const where  = ['d.stage_id = $1'];
+  appendDateRange(where, params, 'd.created_at', from, to);
+  if (team_id) {
+    params.push(Number(team_id));
+    where.push(`u.team_id = $${params.length}`);
+  }
+  const sql = `
+    SELECT d.id, d.title, d.value, d.created_at,
+           u.name AS owner_name
+      FROM deals d
+      LEFT JOIN users u ON u.id = d.owner_id
+     WHERE ${where.join(' AND ')}
+     ORDER BY d.created_at DESC
+     LIMIT 50`;
+  const { rows } = await query(sql, params);
   return rows;
 };
 
