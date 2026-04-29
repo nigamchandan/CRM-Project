@@ -2,58 +2,223 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+ * Modern CRM — Design System (Stripe-inspired, premium polish)
+ *
+ * Tokens live in tailwind.config.js (colors, shadows, gradients, animations).
+ * Component classes here compose those tokens into the building blocks the
+ * app uses everywhere: cards, buttons, inputs, badges, tables.
+ *
+ * Anything that isn't a Tailwind utility belongs in this file so the visual
+ * language stays consistent — refining .card here, for example, refreshes
+ * every screen that uses it.
+ * ========================================================================= */
+
 html, body, #root { height: 100%; }
 body {
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  @apply bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-200;
+  font-feature-settings: 'cv02','cv03','cv04','cv11'; /* Inter's nicer alts */
+  letter-spacing: -0.005em;
+  @apply text-gray-900 dark:text-slate-200;
+  background-color: #f6f9fc; /* Stripe's signature page surface */
+  background-image: linear-gradient(180deg, #f6f9fc 0%, #ffffff 320px);
+  background-attachment: fixed;
+}
+.dark body {
+  background-color: #0a0a14;
+  background-image: linear-gradient(180deg, #0a0a14 0%, #13131e 320px);
 }
 
 /* Smooth theme transition on color-affecting properties */
 *, *::before, *::after {
-  transition: background-color .2s ease, border-color .2s ease, color .2s ease, fill .2s ease, stroke .2s ease;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease,
+              fill .2s ease, stroke .2s ease, box-shadow .2s ease,
+              transform .15s ease;
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars — thin, restrained, like Stripe / Linear */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.35); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.6); }
-.dark ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.25); }
-.dark ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.5); }
+::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.25); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.5); background-clip: content-box; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.2); background-clip: content-box; }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.45); background-clip: content-box; }
+
+/* Selection color — matches the brand */
+::selection { background: rgba(99,91,255,0.25); }
+.dark ::selection { background: rgba(122,115,255,0.35); }
 
 @layer components {
-  .btn           { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-500/50 dark:focus:ring-offset-slate-900; }
-  .btn-primary   { @apply btn bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-60 shadow-sm; }
-  .btn-secondary { @apply btn bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700/70; }
-  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-700; }
-  .btn-ghost     { @apply btn text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800; }
+  /* ---------- Buttons ---------------------------------------------------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-lg font-medium text-sm
+           focus:outline-none focus:ring-[3px] focus:ring-offset-0;
+    transition: background-color .15s ease, color .15s ease,
+                border-color .15s ease, box-shadow .15s ease,
+                transform .1s ease;
+  }
+  .btn:active { transform: translateY(0.5px); }
 
-  .input  { @apply w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500; }
+  /* The Stripe-style primary CTA: gradient fill, soft indigo glow, inset highlight. */
+  .btn-primary {
+    @apply btn text-white disabled:opacity-60 disabled:cursor-not-allowed
+           focus:ring-brand-200 dark:focus:ring-brand-500/40;
+    background-image: linear-gradient(180deg, #7a73ff 0%, #635bff 100%);
+    box-shadow: 0 1px 2px 0 rgba(16,24,40,0.05),
+                0 4px 12px -2px rgba(99,91,255,0.35),
+                inset 0 1px 0 0 rgba(255,255,255,0.18);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-image: linear-gradient(180deg, #8985ff 0%, #6f67ff 100%);
+    box-shadow: 0 1px 2px 0 rgba(16,24,40,0.05),
+                0 6px 16px -2px rgba(99,91,255,0.45),
+                inset 0 1px 0 0 rgba(255,255,255,0.22);
+  }
 
-  /* HubSpot-style compact input used by the Create Ticket slide-over */
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 border border-gray-200
+           hover:bg-gray-50 hover:border-gray-300
+           focus:ring-brand-100
+           dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-700
+           dark:hover:bg-slate-700/70 dark:hover:border-slate-600
+           dark:focus:ring-brand-500/30;
+    box-shadow: 0 1px 2px 0 rgba(16,24,40,0.04);
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-200 dark:focus:ring-red-500/40;
+    box-shadow: 0 1px 2px 0 rgba(16,24,40,0.05),
+                0 4px 12px -2px rgba(220,38,38,0.30);
+  }
+
+  .btn-ghost {
+    @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900
+           dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100
+           focus:ring-brand-100 dark:focus:ring-brand-500/30;
+  }
+
+  /* ---------- Inputs ----------------------------------------------------- */
+  /* Stripe-signature focus state: thin border + 3px soft ring of the brand colour. */
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-lg text-sm
+           bg-white text-gray-900 placeholder:text-gray-400
+           border border-gray-200
+           focus:outline-none focus:border-brand-500 focus:ring-[3px] focus:ring-brand-100
+           disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+           dark:bg-slate-900/60 dark:border-slate-700 dark:text-slate-100
+           dark:placeholder:text-slate-500
+           dark:focus:border-brand-500 dark:focus:ring-brand-500/25
+           dark:disabled:bg-slate-800/40 dark:disabled:text-slate-500;
+    box-shadow: 0 1px 2px 0 rgba(16,24,40,0.04);
+  }
+
+  /* Compact input used by the HubSpot-style ticket drawer — tightened to match. */
   .hs-input {
     @apply w-full px-3 py-2 text-sm rounded-md
-           bg-white dark:bg-slate-800
-           border border-gray-300 dark:border-slate-600
+           bg-white dark:bg-slate-900/60
+           border border-gray-200 dark:border-slate-700
            text-gray-900 dark:text-slate-100
            placeholder:text-gray-400 dark:placeholder:text-slate-500
-           focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400;
+           focus:outline-none focus:border-brand-500 focus:ring-[3px] focus:ring-brand-100
+           dark:focus:border-brand-500 dark:focus:ring-brand-500/25;
   }
-  .label  { @apply block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1; }
-  .card   { @apply bg-white rounded-xl shadow-card border border-gray-100 dark:bg-slate-900 dark:border-slate-800 dark:shadow-card-dark; }
 
-  .badge  { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  .label { @apply block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5; }
 
-  .table-wrap { @apply overflow-x-auto rounded-xl border border-gray-100 bg-white dark:bg-slate-900 dark:border-slate-800; }
+  /* ---------- Cards ------------------------------------------------------ */
+  /* Hairline border + soft shadow + rounded-2xl is the "Stripe card" look. */
+  .card {
+    @apply rounded-2xl bg-white border border-gray-100 shadow-card
+           dark:bg-[#13131e] dark:border-slate-800/80 dark:shadow-card-dark;
+  }
+  .card-elevated {
+    @apply card shadow-card-hover;
+  }
+  .card-interactive {
+    @apply card cursor-pointer;
+  }
+  .card-interactive:hover {
+    @apply shadow-card-hover -translate-y-px;
+  }
+
+  /* ---------- Badges ----------------------------------------------------- */
+  /* Stripe-style soft fill: tint background + same-hue darker text + hairline border. */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium;
+  }
+  .badge-neutral { @apply badge bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300; }
+  .badge-brand   { @apply badge bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300; }
+  .badge-success { @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300; }
+  .badge-warning { @apply badge bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300; }
+  .badge-danger  { @apply badge bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300; }
+  .badge-info    { @apply badge bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300; }
+
+  /* ---------- Tables ----------------------------------------------------- */
+  .table-wrap {
+    @apply overflow-x-auto rounded-2xl border border-gray-100 bg-white
+           dark:bg-[#13131e] dark:border-slate-800/80;
+  }
   table.crm-table { @apply w-full text-sm; }
-  table.crm-table thead { @apply bg-gray-50 text-gray-600 dark:bg-slate-800/50 dark:text-slate-300; }
-  table.crm-table th { @apply text-left px-4 py-3 font-medium; }
-  table.crm-table td { @apply px-4 py-3 border-t border-gray-100 dark:border-slate-800 dark:text-slate-300; }
-  table.crm-table tbody tr:hover { @apply bg-gray-50 dark:bg-slate-800/40; }
+  table.crm-table thead {
+    @apply bg-gray-50/60 text-gray-600 dark:bg-slate-800/30 dark:text-slate-400
+           text-[11px] uppercase tracking-wider;
+  }
+  table.crm-table th { @apply text-left px-4 py-2.5 font-medium; }
+  table.crm-table td { @apply px-4 py-3 border-t border-gray-100 dark:border-slate-800/70 dark:text-slate-300; }
+  table.crm-table tbody tr:hover { @apply bg-gray-50/60 dark:bg-slate-800/30; }
 
-  /* Section title used inside a card */
-  .section-title { @apply font-semibold text-gray-900 dark:text-slate-100; }
+  /* ---------- Section headings inside cards ------------------------------ */
+  .section-title { @apply font-semibold text-gray-900 dark:text-slate-100 tracking-tight; }
   .section-sub   { @apply text-xs text-gray-500 dark:text-slate-400 mt-0.5; }
+  .display-title {
+    @apply text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-slate-50
+           tracking-tightest leading-[1.15];
+  }
+
+  /* ---------- KPI tile (used on dashboards) ------------------------------ */
+  .kpi {
+    @apply card p-5 hover:shadow-card-hover transition;
+  }
+  .kpi-label { @apply text-[11px] uppercase tracking-wider font-medium text-gray-500 dark:text-slate-400; }
+  .kpi-value { @apply mt-1.5 text-3xl font-semibold tracking-tight text-gray-900 dark:text-slate-50; }
+  .kpi-delta-up   { @apply text-xs font-medium text-emerald-600 dark:text-emerald-400; }
+  .kpi-delta-down { @apply text-xs font-medium text-red-600 dark:text-red-400; }
+}
+
+@layer utilities {
+  /* Brand gradient text — used sparingly for marketing-y headings. */
+  .gradient-text {
+    background: linear-gradient(135deg, #635bff 0%, #8b6cf5 50%, #b66cf5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Hover-lift utility — pairs with .transition-transform on cards/buttons */
+  .hover-lift { transition: transform .15s ease, box-shadow .15s ease; }
+  .hover-lift:hover { transform: translateY(-1px); }
+
+  /* Skeleton shimmer — used for loading states */
+  .skeleton {
+    background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+  .dark .skeleton {
+    background: linear-gradient(90deg, #1f2937 0%, #374151 50%, #1f2937 100%);
+    background-size: 200% 100%;
+  }
+  @keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Glass blur for floating headers / topbar */
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl backdrop-saturate-150
+           dark:bg-[#13131e]/80;
+  }
 }

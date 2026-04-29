@@ -8,13 +8,18 @@ import Icon from '../ui/Icon.jsx';
 // Site/support engineers live entirely inside Tickets + Tasks, so the
 // sales-side modules (Contacts, Leads, Deals, Reports) are hidden for them.
 const NAV = [
+  { section: 'Workspace' },
   { to: '/',          label: 'Dashboard',  icon: 'home' },
   { to: '/contacts',  label: 'Contacts',   icon: 'users',      hideFor: ['engineer'] },
   { to: '/leads',     label: 'Leads',      icon: 'target',     hideFor: ['engineer'] },
   { to: '/deals',     label: 'Deals',      icon: 'briefcase',  hideFor: ['engineer'] },
+
+  { section: 'Service' },
   { to: '/tickets',   label: 'Tickets',    icon: 'ticket' },
   { to: '/tasks',     label: 'Tasks',      icon: 'checkCircle' },
   { to: '/reports',   label: 'Reports',    icon: 'chartBar',   hideFor: ['engineer'] },
+
+  { section: 'Manage', roles: ['admin', 'manager'] },
   { to: '/users',     label: 'Users',      icon: 'userCircle', roles: ['admin','manager'] },
   { to: '/settings',  label: 'Settings',   icon: 'cog',        roles: ['admin','manager'] },
   { to: '/logs',      label: 'Audit Logs', icon: 'document',   roles: ['admin','manager'] },
@@ -23,11 +28,11 @@ const NAV = [
 export default function Sidebar({ mobileOpen, onClose }) {
   const { user } = useAuth();
   const role = user?.role;
-  const links = NAV.filter(n => {
-    if (n.roles && !n.roles.includes(role)) return false;
-    if (n.hideFor && n.hideFor.includes(role)) return false;
-    return true;
-  });
+
+  // Filter nav entries by role. Section headings disappear if all of their
+  // following items get filtered out (so engineers don't see an empty
+  // "Manage" header).
+  const items = filterNav(NAV, role);
 
   return (
     <>
@@ -36,67 +41,113 @@ export default function Sidebar({ mobileOpen, onClose }) {
       )}
       <aside
         className={`
-          fixed md:static z-40 h-screen md:h-auto w-52 flex flex-col
-          bg-white dark:bg-slate-900
-          border-r border-gray-100 dark:border-slate-800
+          fixed md:static z-40 h-screen md:h-auto w-56 flex flex-col
+          bg-white dark:bg-[#0f0f1a]
+          border-r border-gray-100 dark:border-slate-800/70
           transform transition-transform md:transform-none
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="h-14 px-3 flex items-center border-b border-gray-100 dark:border-slate-800">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center text-sm font-bold shadow-md shadow-brand-500/30">
+        {/* Brand header */}
+        <div className="h-16 px-4 flex items-center border-b border-gray-100 dark:border-slate-800/70">
+          <div className="w-9 h-9 rounded-xl bg-brand-gradient text-white flex items-center justify-center text-sm font-bold shadow-glow-sm">
             C
           </div>
-          <div className="ml-2 min-w-0">
-            <div className="text-[13px] font-semibold text-gray-900 dark:text-slate-100 leading-tight truncate">Modern CRM</div>
-            <div className="text-[10px] text-gray-500 dark:text-slate-500 leading-tight">v1.0</div>
+          <div className="ml-2.5 min-w-0">
+            <div className="text-[14px] font-semibold text-gray-900 dark:text-slate-100 leading-tight truncate tracking-tight">
+              Modern CRM
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-slate-500 leading-tight tracking-wider uppercase">
+              v1.0
+            </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-          <div className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-            Workspace
-          </div>
-          {links.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.to === '/'}
-              onClick={onClose}
-              className={({ isActive }) => `
-                group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors
-                ${isActive
-                  ? 'bg-brand-50 text-brand-700 font-medium dark:bg-brand-500/10 dark:text-brand-300'
-                  : 'text-gray-700 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'}
-              `}
-            >
-              {({ isActive }) => (
-                <>
-                  <span className={`relative flex items-center ${isActive ? 'text-brand-600 dark:text-brand-400' : ''}`}>
+        {/* Nav */}
+        <nav className="flex-1 px-2.5 py-3 overflow-y-auto">
+          {items.map((item, idx) => {
+            if (item.section) {
+              return (
+                <div
+                  key={`s-${idx}`}
+                  className="px-2.5 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-slate-500"
+                >
+                  {item.section}
+                </div>
+              );
+            }
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                onClick={onClose}
+                className={({ isActive }) => `
+                  group relative flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px]
+                  transition-all duration-150
+                  ${isActive
+                    ? 'bg-brand-50 text-brand-700 font-medium dark:bg-brand-500/12 dark:text-brand-300'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-100'}
+                `}
+              >
+                {({ isActive }) => (
+                  <>
                     {isActive && (
-                      <span className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r-full bg-brand-600 dark:bg-brand-400" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-brand-600 dark:bg-brand-400" />
                     )}
-                    <Icon name={n.icon} className="w-4 h-4" />
-                  </span>
-                  <span className="truncate">{n.label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                    <Icon
+                      name={item.icon}
+                      className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-brand-600 dark:text-brand-400' : ''}`}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
-        <div className="p-2.5 border-t border-gray-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+        {/* User card at bottom */}
+        <div className="p-3 border-t border-gray-100 dark:border-slate-800/70">
+          <div className="flex items-center gap-2.5 p-2 rounded-lg
+                          hover:bg-gray-50 dark:hover:bg-slate-800/40 transition cursor-default">
+            <div className="w-9 h-9 rounded-full bg-brand-gradient-r text-white flex items-center justify-center text-sm font-semibold shrink-0 shadow-inset-top">
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-medium text-gray-900 dark:text-slate-100 truncate">{user?.name}</div>
-              <div className="text-[10px] text-gray-500 dark:text-slate-500 capitalize leading-tight">{user?.role}</div>
+              <div className="text-[13px] font-medium text-gray-900 dark:text-slate-100 truncate tracking-tight">
+                {user?.name}
+              </div>
+              <div className="text-[11px] text-gray-500 dark:text-slate-500 capitalize leading-tight">
+                {user?.role}
+              </div>
             </div>
           </div>
         </div>
       </aside>
     </>
   );
+}
+
+/* ---------- helpers ---------- */
+
+function filterNav(nav, role) {
+  // First pass: drop role-restricted items.
+  const visibleByRole = nav.filter((item) => {
+    if (item.roles && !item.roles.includes(role)) return false;
+    if (item.hideFor && item.hideFor.includes(role)) return false;
+    return true;
+  });
+
+  // Second pass: drop section headers that have no following links.
+  const result = [];
+  for (let i = 0; i < visibleByRole.length; i++) {
+    const item = visibleByRole[i];
+    if (item.section) {
+      const next = visibleByRole[i + 1];
+      if (!next || next.section) continue; // empty section — skip
+    }
+    result.push(item);
+  }
+  return result;
 }
