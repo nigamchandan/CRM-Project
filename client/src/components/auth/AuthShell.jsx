@@ -103,7 +103,7 @@ export default function AuthShell({ children, title, subtitle, footer }) {
               ))}
             </div>
             <div className="text-[11px] text-white/40 tracking-wide">
-              &copy; {new Date().getFullYear()} Modern CRM &middot; v1.0
+              &copy; {new Date().getFullYear()} Modern CRM &middot; v1.1
             </div>
           </div>
         </div>

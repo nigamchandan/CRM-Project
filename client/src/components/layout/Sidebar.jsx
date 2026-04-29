@@ -58,7 +58,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
               Modern CRM
             </div>
             <div className="text-[10px] text-gray-500 dark:text-slate-500 leading-tight tracking-wider uppercase">
-              v1.0
+              v1.1
             </div>
           </div>
         </div>
