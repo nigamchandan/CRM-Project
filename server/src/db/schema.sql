@@ -240,6 +240,12 @@ ALTER TABLE tickets ADD COLUMN IF NOT EXISTS escalated_at         TIMESTAMPTZ;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla_due_at           TIMESTAMPTZ;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla_paused_at        TIMESTAMPTZ;     -- non-NULL while in a SLA-paused stage
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS closed_at            TIMESTAMPTZ;
+-- Idempotency flag for the "SLA almost breached" notification. Set the first
+-- time the SLA cron warns the manager so we don't spam them every 5 minutes.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla_warned_at        TIMESTAMPTZ;
+-- ITIL-style classification: incidents (something is broken) vs requests
+-- (someone wants something). Drives reporting + routing.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_type          VARCHAR(20) NOT NULL DEFAULT 'incident';
 
 -- User-facing, unique ticket number derived from the primary key (e.g. TKT-00012).
 -- Implemented as a STORED generated column so it is automatically populated for
@@ -265,6 +271,11 @@ CREATE INDEX IF NOT EXISTS idx_tickets_engineer            ON tickets(assigned_e
 CREATE INDEX IF NOT EXISTS idx_tickets_manager             ON tickets(reporting_manager_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_sla_due             ON tickets(sla_due_at);
 CREATE INDEX IF NOT EXISTS idx_tickets_status_priority_due ON tickets(status, priority, sla_due_at);
+-- Powers the SLA-monitoring cron's fast scan for tickets nearing or past breach.
+CREATE INDEX IF NOT EXISTS idx_tickets_sla_alive
+  ON tickets(sla_due_at)
+  WHERE status NOT IN ('closed','resolved') AND sla_paused_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tickets_type                ON tickets(ticket_type);
 
 -- ----------------------------------------------------------------------------
 -- TICKET COMMENTS (with attachments JSONB)
@@ -277,6 +288,10 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
   attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Internal notes (visible only to staff) vs customer replies (visible everywhere).
+-- We store every comment in the same table; the boolean drives access + UI tinting.
+ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_ticket_comments_internal ON ticket_comments(ticket_id, is_internal);
 CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id);
 
 -- ----------------------------------------------------------------------------
@@ -337,8 +352,18 @@ CREATE TABLE IF NOT EXISTS logs (
   meta       JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Production-grade audit trail: capture *who*, *from where*, and *what changed*.
+-- before_data / after_data are JSON snapshots of the relevant entity columns
+-- before and after the mutation, so a reviewer can answer "what did they change?"
+-- without re-reading 5 different services.
+ALTER TABLE logs ADD COLUMN IF NOT EXISTS ip_address  VARCHAR(45);   -- IPv6-safe
+ALTER TABLE logs ADD COLUMN IF NOT EXISTS user_agent  VARCHAR(400);  -- truncated UA
+ALTER TABLE logs ADD COLUMN IF NOT EXISTS before_data JSONB;
+ALTER TABLE logs ADD COLUMN IF NOT EXISTS after_data  JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_logs_user        ON logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_logs_action      ON logs(action);
 CREATE INDEX IF NOT EXISTS idx_logs_entity      ON logs(entity, entity_id);
 -- created_at index powers the retention sweep AND every "recent / range" filter.
 CREATE INDEX IF NOT EXISTS idx_logs_created_at  ON logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_ip          ON logs(ip_address);

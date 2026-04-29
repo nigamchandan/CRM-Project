@@ -36,6 +36,36 @@ async function resolveAccessible(req, res) {
  *              no SLA tampering. Stage moves go through PATCH /:id/stage.
  *   user     → same restrictions as engineer
  */
+/**
+ * Pick the ticket fields worth tracking in the audit log's before/after diff.
+ * We deliberately exclude noisy fields (timestamps, joined display names) and
+ * keep only the columns a reviewer cares about: routing, SLA, assignment,
+ * status. The shape is small enough to render comfortably in the Logs UI.
+ */
+function pickAuditableTicketFields(t) {
+  if (!t) return null;
+  return {
+    subject:              t.subject,
+    description:          t.description,
+    status:               t.status,
+    priority:             t.priority,
+    ticket_type:          t.ticket_type,
+    source:               t.source,
+    pipeline_id:          t.pipeline_id,
+    pipeline_stage_id:    t.pipeline_stage_id,
+    assigned_to:          t.assigned_to,
+    assigned_engineer_id: t.assigned_engineer_id,
+    reporting_manager_id: t.reporting_manager_id,
+    project_manager_id:   t.project_manager_id,
+    project_id:           t.project_id,
+    location_id:          t.location_id,
+    contact_id:           t.contact_id,
+    team_id:              t.team_id,
+    sla_due_at:           t.sla_due_at,
+    escalation_level:     t.escalation_level,
+  };
+}
+
 function sanitizeUpdateBody(role, body = {}) {
   if (role === 'admin') return body;
 
@@ -86,7 +116,7 @@ exports.getOne = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const r = await service.create({ ...req.body, created_by: req.user.id });
-    await writeLog({ userId: req.user.id, action: 'ticket.create', entity: 'tickets', entityId: r.id });
+    await writeLog({ req, userId: req.user.id, action: 'ticket.create', entity: 'tickets', entityId: r.id });
     emitBroadcast('ticket:new', r);
 
     // Notify engineer in-app
@@ -120,11 +150,20 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    if (!(await resolveAccessible(req, res))) return;
+    const before = await resolveAccessible(req, res);
+    if (!before) return;
     const safeBody = sanitizeUpdateBody(req.user.role, req.body);
     const r = await service.update(req.params.id, safeBody);
     if (!r) return res.status(404).json({ message: 'Ticket not found' });
-    await writeLog({ userId: req.user.id, action: 'ticket.update', entity: 'tickets', entityId: r.id });
+    await writeLog({
+      req,
+      userId:   req.user.id,
+      action:   'ticket.update',
+      entity:   'tickets',
+      entityId: r.id,
+      before:   pickAuditableTicketFields(before),
+      after:    pickAuditableTicketFields(r),
+    });
     emitBroadcast('ticket:update', r);
     res.json(r);
   } catch (e) { next(e); }
@@ -143,7 +182,7 @@ exports.setStage = async (req, res, next) => {
     if (!before) return;
     const r = await service.setStage(req.params.id, stageId);
     if (!r) return res.status(404).json({ message: 'Ticket or stage not found' });
-    await writeLog({ userId: req.user.id, action: 'ticket.stage', entity: 'tickets', entityId: r.id, meta: {
+    await writeLog({ req, userId: req.user.id, action: 'ticket.stage', entity: 'tickets', entityId: r.id, meta: {
       from: before?.pipeline_stage_id, to: r.pipeline_stage_id, stage: r.stage_name,
     }});
     emitBroadcast('ticket:update', r);
@@ -164,7 +203,7 @@ exports.setStatus = async (req, res, next) => {
     const before = await resolveAccessible(req, res);
     if (!before) return;
     const r = await service.setStatus(req.params.id, req.body.status);
-    await writeLog({ userId: req.user.id, action: 'ticket.status', entity: 'tickets', entityId: r.id, meta: { status: r.status } });
+    await writeLog({ req, userId: req.user.id, action: 'ticket.status', entity: 'tickets', entityId: r.id, meta: { status: r.status } });
     emitBroadcast('ticket:update', r);
 
     // Email on close (only when transitioning to 'closed' or 'resolved' from a non-closed state)
@@ -183,7 +222,7 @@ exports.assign = async (req, res, next) => {
   try {
     if (!(await resolveAccessible(req, res))) return;
     const r = await service.assign(req.params.id, req.body || {});
-    await writeLog({ userId: req.user.id, action: 'ticket.assign', entity: 'tickets', entityId: r.id, meta: {
+    await writeLog({ req, userId: req.user.id, action: 'ticket.assign', entity: 'tickets', entityId: r.id, meta: {
       engineer: r.assigned_engineer_id, manager: r.reporting_manager_id,
     }});
     emitBroadcast('ticket:update', r);
@@ -204,7 +243,7 @@ exports.escalate = async (req, res, next) => {
   try {
     if (!(await resolveAccessible(req, res))) return;
     const r = await service.escalate(req.params.id);
-    await writeLog({ userId: req.user.id, action: 'ticket.escalate', entity: 'tickets', entityId: r.id, meta: { level: r.escalation_level } });
+    await writeLog({ req, userId: req.user.id, action: 'ticket.escalate', entity: 'tickets', entityId: r.id, meta: { level: r.escalation_level } });
     emitBroadcast('ticket:update', r);
     if (r.reporting_manager_id) {
       await notifications.createAndEmit({
@@ -226,7 +265,7 @@ exports.remove = async (req, res, next) => {
     // we still want to refuse on tickets the caller can't see.
     if (!(await resolveAccessible(req, res))) return;
     await service.remove(req.params.id);
-    await writeLog({ userId: req.user.id, action: 'ticket.delete', entity: 'tickets', entityId: req.params.id });
+    await writeLog({ req, userId: req.user.id, action: 'ticket.delete', entity: 'tickets', entityId: req.params.id });
     emitBroadcast('ticket:delete', { id: Number(req.params.id) });
     res.status(204).end();
   } catch (e) { next(e); }
@@ -267,7 +306,7 @@ exports.addComment = async (req, res, next) => {
     const r = await service.addComment(req.params.id, {
       author_id: req.user.id, body: req.body.body, attachments,
     });
-    await writeLog({ userId: req.user.id, action: 'ticket.comment', entity: 'tickets', entityId: req.params.id });
+    await writeLog({ req, userId: req.user.id, action: 'ticket.comment', entity: 'tickets', entityId: req.params.id });
     emitBroadcast('ticket:comment', { ticket_id: Number(req.params.id), comment: r });
     res.status(201).json(r);
   } catch (e) { next(e); }

@@ -113,7 +113,7 @@ function ActionBadge({ action }) {
   );
 }
 
-function MetaCell({ summary, meta, meta_resolved }) {
+function MetaCell({ summary, meta, meta_resolved, before, after }) {
   // Build supplementary chips from raw meta — but skip keys we already
   // expressed inside the summary so the row reads cleanly.
   const HIDE = new Set([
@@ -127,7 +127,11 @@ function MetaCell({ summary, meta, meta_resolved }) {
     ([k, v]) => !HIDE.has(k) && v !== null && v !== undefined && v !== '',
   );
 
-  if (!summary && !entries.length) return <span className="text-gray-400">—</span>;
+  // Compute before/after diff (only fields that actually changed).
+  const diff = useMemo(() => buildDiff(before, after), [before, after]);
+  const [showDiff, setShowDiff] = useState(false);
+
+  if (!summary && !entries.length && !diff.length) return <span className="text-gray-400">—</span>;
 
   return (
     <div className="space-y-1 max-w-md">
@@ -160,8 +164,67 @@ function MetaCell({ summary, meta, meta_resolved }) {
           )}
         </div>
       )}
+      {diff.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowDiff((s) => !s)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+          >
+            <Icon name={showDiff ? 'chevronDown' : 'chevronRight'} className="w-3 h-3" />
+            {showDiff ? 'Hide' : 'View'} {diff.length} field change{diff.length === 1 ? '' : 's'}
+          </button>
+          {showDiff && (
+            <div className="mt-1.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/60 p-2 space-y-1">
+              {diff.map(({ key, from, to }) => (
+                <div key={key} className="flex items-start gap-2 text-[11px]">
+                  <span className="font-mono text-gray-500 dark:text-slate-400 shrink-0 w-32 truncate" title={key}>
+                    {prettyKey(key)}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 line-through truncate max-w-[140px]" title={String(from)}>
+                    {fmtDiffVal(from)}
+                  </span>
+                  <Icon name="arrowRight" className="w-3 h-3 text-gray-400 mt-0.5" />
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 truncate max-w-[140px]" title={String(to)}>
+                    {fmtDiffVal(to)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+/**
+ * Compute the field-by-field changes between two snapshot objects.
+ * Returns [{ key, from, to }] for keys whose values differ. Ignores fields
+ * that are equal-after-stringify so we don't surface noise like
+ * `null` ↔ `""`.
+ */
+function buildDiff(before, after) {
+  if (!before && !after) return [];
+  const keys = new Set([
+    ...Object.keys(before || {}),
+    ...Object.keys(after  || {}),
+  ]);
+  const out = [];
+  for (const k of keys) {
+    const a = before ? before[k] : undefined;
+    const b = after  ? after[k]  : undefined;
+    if (JSON.stringify(a ?? null) === JSON.stringify(b ?? null)) continue;
+    out.push({ key: k, from: a, to: b });
+  }
+  return out;
+}
+
+function fmtDiffVal(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  const s = String(v);
+  return s.length > 40 ? s.slice(0, 40) + '…' : s;
 }
 
 function prettyKey(k) {
@@ -171,6 +234,41 @@ function prettyKey(k) {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/**
+ * Compact origin cell: IP + a friendly browser/OS tag distilled from the
+ * user-agent string. Full UA stays in the tooltip for forensics.
+ */
+function OriginCell({ ip, ua }) {
+  if (!ip && !ua) return <span className="text-gray-400">—</span>;
+  const tag = friendlyUa(ua);
+  return (
+    <div className="text-[11px] leading-tight" title={ua || ''}>
+      {ip && (
+        <div className="font-mono text-gray-700 dark:text-slate-300 truncate">{ip}</div>
+      )}
+      {tag && (
+        <div className="text-gray-500 dark:text-slate-400 truncate">{tag}</div>
+      )}
+    </div>
+  );
+}
+
+function friendlyUa(ua = '') {
+  if (!ua) return '';
+  const browser =
+    /edg/i.test(ua)        ? 'Edge'    :
+    /chrome/i.test(ua)     ? 'Chrome'  :
+    /firefox/i.test(ua)    ? 'Firefox' :
+    /safari/i.test(ua)     ? 'Safari'  : 'Browser';
+  const os =
+    /windows/i.test(ua)    ? 'Windows' :
+    /mac os|macintosh/i.test(ua) ? 'macOS' :
+    /android/i.test(ua)    ? 'Android' :
+    /iphone|ipad|ios/i.test(ua) ? 'iOS' :
+    /linux/i.test(ua)      ? 'Linux'   : '';
+  return os ? `${browser} · ${os}` : browser;
 }
 
 function EntityCell({ entity, entity_id }) {
@@ -225,6 +323,7 @@ export default function Logs() {
   const [userId, setUserId]     = useState('');
   const [action, setAction]     = useState('');
   const [entity, setEntity]     = useState('');
+  const [ip, setIp]             = useState('');
   const [from, setFrom]         = useState('');
   const [to, setTo]             = useState('');
   const [quickKey, setQuickKey] = useState('all');
@@ -257,17 +356,18 @@ export default function Logs() {
     debounceRef.current = setTimeout(() => fetchLogs(), 250);
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, userId, action, entity, from, to, page, limit]);
+  }, [q, userId, action, entity, ip, from, to, page, limit]);
 
   // Build the filter payload with local→UTC date conversion.
   function buildParams(extra = {}) {
     return {
-      q: q || undefined,
-      user_id: userId || undefined,
-      action: action || undefined,
-      entity: entity || undefined,
-      from: toUtcBoundary(from, 'start') || undefined,
-      to:   toUtcBoundary(to,   'end')   || undefined,
+      q:       q       || undefined,
+      user_id: userId  || undefined,
+      action:  action  || undefined,
+      entity:  entity  || undefined,
+      ip:      ip      || undefined,
+      from:    toUtcBoundary(from, 'start') || undefined,
+      to:      toUtcBoundary(to,   'end')   || undefined,
       ...extra,
     };
   }
@@ -318,11 +418,11 @@ export default function Logs() {
   }
 
   function clearAll() {
-    setQ(''); setUserId(''); setAction(''); setEntity('');
+    setQ(''); setUserId(''); setAction(''); setEntity(''); setIp('');
     setFrom(''); setTo(''); setQuickKey('all'); setPage(1);
   }
 
-  const hasFilters = q || userId || action || entity || from || to;
+  const hasFilters = q || userId || action || entity || ip || from || to;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   /* ============================================================ */
@@ -380,7 +480,7 @@ export default function Logs() {
         </div>
 
         {/* Dropdown row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
           <select className="input" value={userId} onChange={(e) => { setUserId(e.target.value); setPage(1); }}>
             <option value="">All users</option>
             {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.email}</option>)}
@@ -393,6 +493,13 @@ export default function Logs() {
             <option value="">All entities</option>
             {entities.map((e) => <option key={e.entity} value={e.entity}>{e.entity} ({e.count})</option>)}
           </select>
+          <input
+            type="text"
+            className="input font-mono text-xs"
+            placeholder="IP address (e.g. 203.0.113…)"
+            value={ip}
+            onChange={(e) => { setIp(e.target.value); setPage(1); }}
+          />
           <input type="date" className="input" value={from} onChange={(e) => { setFrom(e.target.value); setQuickKey('custom'); setPage(1); }} />
           <input type="date" className="input" value={to} onChange={(e) => { setTo(e.target.value); setQuickKey('custom'); setPage(1); }} />
         </div>
@@ -454,6 +561,7 @@ function TableView({ rows, loading }) {
           <tr>
             <th className="w-44">When</th>
             <th className="w-48">User</th>
+            <th className="w-36">Origin</th>
             <th className="w-44">Action</th>
             <th className="w-40">Entity</th>
             <th>Details</th>
@@ -474,13 +582,22 @@ function TableView({ rows, loading }) {
                     </div>
                   : <span className="text-gray-400 italic">system</span>}
               </td>
+              <td><OriginCell ip={l.ip_address} ua={l.user_agent} /></td>
               <td><ActionBadge action={l.action} /></td>
               <td><EntityCell entity={l.entity} entity_id={l.entity_id} /></td>
-              <td><MetaCell summary={l.summary} meta={l.meta} meta_resolved={l.meta_resolved} /></td>
+              <td>
+                <MetaCell
+                  summary={l.summary}
+                  meta={l.meta}
+                  meta_resolved={l.meta_resolved}
+                  before={l.before_data}
+                  after={l.after_data}
+                />
+              </td>
             </tr>
           ))}
           {rows.length === 0 && !loading && (
-            <tr><td colSpan={5} className="text-center text-gray-500 dark:text-slate-400 py-12">
+            <tr><td colSpan={6} className="text-center text-gray-500 dark:text-slate-400 py-12">
               <Icon name="document" className="w-8 h-8 mx-auto mb-2 text-gray-300" />
               No logs match your filters.
             </td></tr>
@@ -529,9 +646,22 @@ function TimelineView({ rows, loading }) {
                     <span className="font-medium text-gray-900 dark:text-slate-100">{l.user_name || 'system'}</span>
                     <ActionBadge action={l.action} />
                     {l.entity && <EntityCell entity={l.entity} entity_id={l.entity_id} />}
+                    {l.ip_address && (
+                      <span className="text-[10px] font-mono text-gray-400 dark:text-slate-500" title={l.user_agent || ''}>
+                        {l.ip_address}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-400 ml-auto">{new Date(l.created_at).toLocaleTimeString()}</span>
                   </div>
-                  <div className="mt-1.5"><MetaCell summary={l.summary} meta={l.meta} meta_resolved={l.meta_resolved} /></div>
+                  <div className="mt-1.5">
+                    <MetaCell
+                      summary={l.summary}
+                      meta={l.meta}
+                      meta_resolved={l.meta_resolved}
+                      before={l.before_data}
+                      after={l.after_data}
+                    />
+                  </div>
                 </li>
               );
             })}

@@ -1,0 +1,170 @@
+Upgrade my CRM application to a fully enterprise-grade system focusing on real-world usability, scalability, and role-based experience.
+
+### 1. Role-Based Dashboard System
+Implement dynamic dashboards based on user roles:
+
+Admin:
+- Global KPIs (revenue, tickets, SLA compliance)
+- System alerts (SLA breaches, overloaded users)
+- Audit insights
+
+Manager:
+- Team performance dashboard
+- Ticket escalation alerts
+- Engineer workload view
+
+Engineer:
+- My tickets only
+- SLA countdown timer
+- Quick update status
+
+Sales:
+- Leads pipeline
+- Conversion insights
+- Follow-up reminders
+
+---
+
+### 2. Advanced Ticket System (Core Upgrade)
+
+Enhance ticket module with:
+
+- Add fields:
+  - site_location
+  - project_name
+  - assigned_engineer
+  - reporting_manager
+  - escalation_level
+  - SLA_deadline
+  - ticket_type (incident, request)
+
+- Add features:
+  - Multi-level assignment (Engineer → Manager → Admin)
+  - Internal notes vs customer comments
+  - Timeline activity (like audit logs but per ticket)
+  - SLA countdown timer UI
+  - Escalation trigger:
+    IF SLA < 1hr → notify manager
+    IF SLA breached → escalate to admin
+
+- Add ticket priority queue:
+  - Sort by urgency + SLA
+
+---
+
+### 3. Real-Time System
+
+- Implement WebSocket or polling:
+  - Live ticket updates
+  - Live activity feed
+  - Live notifications
+
+---
+
+### 4. Notification System
+
+- Add notification center:
+  - Bell icon dropdown
+  - Types:
+    - Ticket assigned
+    - SLA breach
+    - Status change
+
+- Add email trigger system (backend hooks)
+
+---
+
+### 5. Audit Log Enhancement
+
+- Add fields:
+  - IP address
+  - device info
+  - before/after change
+
+- Add filters:
+  - by user
+  - by action type
+  - by entity
+  - date range
+
+- Add export:
+  - CSV
+  - JSON
+
+- Auto-delete logs after 7 days (cron job)
+
+---
+
+### 6. Smart Dashboard Insights
+
+Add alert widgets:
+
+- "⚠ 3 tickets about to breach SLA"
+- "🔥 High priority unresolved tickets"
+- "📉 Drop in sales performance"
+
+---
+
+### 7. UX Improvements
+
+- Add quick actions:
+  - Right-click → edit / assign
+- Inline editing in tables
+- Keyboard shortcuts:
+  - Ctrl + K → search
+  - N → create new entity
+
+---
+
+### 8. Workload Balancing System
+
+- Track:
+  - tickets per engineer
+- Auto-suggest assignment:
+  - least loaded engineer
+
+---
+
+### 9. Reports Upgrade
+
+- Add filters:
+  - by date
+  - by team
+- Add downloadable reports
+- Add drill-down charts
+
+---
+
+### 10. Code Requirements
+
+- Maintain modular structure
+- Backend: scalable APIs
+- Frontend: reusable components
+- Add loading states and error handling
+
+---
+
+### 11. UI Expectations
+
+- Keep dark modern theme
+- Improve spacing consistency
+- Add micro-interactions (hover, transitions)
+- Show status badges with colors
+
+---
+
+### 12. Database Changes
+
+- Update schema for:
+  - ticket escalation
+  - SLA tracking
+  - notifications
+  - activity logs
+
+---
+
+Deliver:
+- Clean production-ready code
+- Proper API structure
+- Reusable components
+- No placeholders

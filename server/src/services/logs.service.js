@@ -8,6 +8,7 @@ const { query } = require('../config/db');
  *    - entity      (exact)
  *    - entity_id   (exact, numeric)
  *    - user_id     (exact, numeric)
+ *    - ip          (substring match; helps trace one client's activity)
  *    - from / to   (ISO date or datetime; both inclusive)
  *    - q           (free-text: matches user name/email, action, entity, entity_id::text)
  * ---------------------------------------------------------------------------*/
@@ -30,6 +31,10 @@ function buildWhere(filters = {}) {
   if (filters.user_id !== undefined && filters.user_id !== null && filters.user_id !== '') {
     params.push(Number(filters.user_id));
     parts.push(`l.user_id = $${params.length}`);
+  }
+  if (filters.ip) {
+    params.push(`%${filters.ip}%`);
+    parts.push(`l.ip_address ILIKE $${params.length}`);
   }
   if (filters.from) {
     params.push(filters.from);

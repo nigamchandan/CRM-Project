@@ -29,7 +29,9 @@ exports.export = async (req, res, next) => {
     // ---------- CSV ----------
     const cols = [
       'id', 'created_at', 'user_id', 'user_name', 'user_email',
-      'action', 'entity', 'entity_id', 'meta', 'meta_resolved',
+      'action', 'entity', 'entity_id',
+      'ip_address', 'user_agent',
+      'meta', 'meta_resolved', 'before_data', 'after_data', 'summary',
     ];
     const csvEscape = (v) => {
       if (v === null || v === undefined) return '';
