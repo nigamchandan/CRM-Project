@@ -7,7 +7,7 @@ import * as usersService from '../services/usersService';
 import * as projectsService from '../services/projectsService';
 import * as workloadService from '../services/workloadService';
 import EmptyState from '../components/ui/EmptyState.jsx';
-import CreateTicketDrawer from '../components/tickets/CreateTicketDrawer.jsx';
+import CreateTicketDrawer, { QuickTicketButton } from '../components/tickets/CreateTicketDrawer.jsx';
 import InlinePriority from '../components/tickets/InlinePriority.jsx';
 import InlineOwner from '../components/tickets/InlineOwner.jsx';
 import ContextMenu from '../components/ui/ContextMenu.jsx';
@@ -874,6 +874,10 @@ export default function Tickets() {
         onClose={() => setDrawer(false)}
         onCreated={() => load()}
       />
+
+      {/* Floating "Quick Ticket" capture — admins/managers only (engineers
+          can't create tickets, the component bails for that role). */}
+      {!isEngineer && <QuickTicketButton onCreated={() => load()} />}
     </div>
   );
 }
