@@ -5,6 +5,7 @@ import * as pipelinesService from '../../services/ticketPipelinesService';
 import * as projectsService from '../../services/projectsService';
 import * as usersService from '../../services/usersService';
 import * as contactsService from '../../services/contactsService';
+import * as workloadService from '../../services/workloadService';
 import api from '../../services/api';
 import { ProjectFormModal } from '../../pages/Settings.jsx';
 import { useAuth } from '../../context/AuthContext';
@@ -282,16 +283,28 @@ export default function CreateTicketDrawer({ open, onClose, onCreated, defaultPr
 
           {/* Owner */}
           <Field label="Ticket owner" required>
-            <select className="hs-input"
-                    value={form.assigned_engineer_id}
-                    onChange={(e) => setForm((f) => ({ ...f, assigned_engineer_id: e.target.value }))}>
-              <option value="">Select…</option>
-              {engineers.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.name}{u.email ? ` — ${u.email}` : ''}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select className="hs-input flex-1"
+                      value={form.assigned_engineer_id}
+                      onChange={(e) => setForm((f) => ({ ...f, assigned_engineer_id: e.target.value }))}>
+                <option value="">Select…</option>
+                {engineers.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}{u.email ? ` — ${u.email}` : ''}
+                  </option>
+                ))}
+              </select>
+              {(user?.role === 'admin' || user?.role === 'manager') && (
+                <SuggestLeastLoadedButton
+                  excludeId={form.assigned_engineer_id}
+                  onPick={(picked) => {
+                    if (!picked) return toast('No engineer available right now', { icon: 'ℹ️' });
+                    setForm((f) => ({ ...f, assigned_engineer_id: String(picked.id) }));
+                    toast.success(`Assigned to ${picked.name} (load ${picked.load_score?.toFixed?.(1) ?? '0'})`);
+                  }}
+                />
+              )}
+            </div>
           </Field>
 
           {/* Project Manager (override) */}
@@ -508,5 +521,39 @@ function PriorityPicker({ value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Asks the workload service for the least-loaded engineer (optionally
+ * excluding whoever is already selected) and hands the result back via
+ * `onPick`. Renders a compact secondary button so it tucks neatly next
+ * to the engineer picker.
+ */
+function SuggestLeastLoadedButton({ excludeId, onPick }) {
+  const [busy, setBusy] = useState(false);
+  const click = async () => {
+    setBusy(true);
+    try {
+      const r = await workloadService.suggest({
+        exclude_id: excludeId || undefined,
+      });
+      onPick(r?.user || null);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not fetch workload');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={click}
+      disabled={busy}
+      title="Auto-assign to the engineer with the smallest open queue"
+      className="px-2.5 py-2 text-xs font-medium rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
+    >
+      {busy ? '…' : 'Suggest'}
+    </button>
   );
 }

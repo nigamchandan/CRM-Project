@@ -17,5 +17,6 @@ router.use('/reports', require('./reports.routes'));
 router.use('/next-actions', require('./nextActions.routes'));
 router.use('/settings', require('./settings.routes'));
 router.use('/logs', require('./logs.routes'));
+router.use('/workload', require('./workload.routes'));
 
 module.exports = router;

@@ -15,6 +15,7 @@ import SalesFunnel from './SalesFunnel.jsx';
 import TeamPerformance from './TeamPerformance.jsx';
 import SLAPerformance from './SLAPerformance.jsx';
 import AlertsPanel from './AlertsPanel.jsx';
+import EngineerLoad from './EngineerLoad.jsx';
 import NextActions from './NextActions.jsx';
 import { SkeletonCard, SkeletonBlock, SkeletonList } from '../ui/Skeleton.jsx';
 import Icon from '../ui/Icon.jsx';
@@ -354,6 +355,22 @@ export default function AdminDashboard({ previewer }) {
           {nextLoading ? <SkeletonList rows={5} /> : <NextActions data={nextActions} compact />}
         </SectionCard>
       </div>
+
+      {/* Engineer workload — only visible to admins/managers; the
+           workload endpoint will 403 for engineers/users so we don't
+           even render the card for them. */}
+      {(user?.role === 'admin' || user?.role === 'manager') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <SectionCard
+            title="Engineer workload"
+            subtitle="Sorted least → most loaded. Pick from the top when assigning."
+            right={<Link to="/users" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">Manage →</Link>}
+            className="lg:col-span-3"
+          >
+            <EngineerLoad limit={6} />
+          </SectionCard>
+        </div>
+      )}
 
       {/* Funnel + Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
