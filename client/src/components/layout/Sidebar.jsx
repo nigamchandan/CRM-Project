@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Icon from '../ui/Icon.jsx';
+import Logo from '../brand/Logo.jsx';
 
 // Each nav entry can declare:
 //   roles:   whitelist (only these roles see it)
@@ -50,17 +51,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
       >
         {/* Brand header */}
         <div className="h-16 px-4 flex items-center border-b border-gray-100 dark:border-slate-800/70">
-          <div className="w-9 h-9 rounded-xl bg-brand-gradient text-white flex items-center justify-center text-sm font-bold shadow-glow-sm">
-            C
-          </div>
-          <div className="ml-2.5 min-w-0">
-            <div className="text-[14px] font-semibold text-gray-900 dark:text-slate-100 leading-tight truncate tracking-tight">
-              Modern CRM
-            </div>
-            <div className="text-[10px] text-gray-500 dark:text-slate-500 leading-tight tracking-wider uppercase">
-              v1.1
-            </div>
-          </div>
+          <Logo to="/" variant="inline" size="md" version="v1.1" />
         </div>
 
         {/* Nav */}

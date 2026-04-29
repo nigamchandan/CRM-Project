@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
 import ThemeToggle from '../layout/ThemeToggle.jsx';
+import Logo from '../brand/Logo.jsx';
 
 /* ----------------------------------------------------------------------------
  * AuthShell — split-panel auth layout (Stripe-inspired).
@@ -47,16 +47,13 @@ export default function AuthShell({ children, title, subtitle, footer }) {
 
         <div className="relative z-10 flex flex-col justify-between p-10 xl:p-14 w-full">
           {/* Brand mark */}
-          <Link to="/" className="flex items-center gap-3 group w-fit">
-            <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur border border-white/20
-                            flex items-center justify-center font-bold text-lg shadow-inset-top">
-              C
-            </div>
-            <div>
-              <div className="font-semibold tracking-tight">Modern CRM</div>
-              <div className="text-[11px] text-white/60 tracking-wider uppercase">Customer success, simplified</div>
-            </div>
-          </Link>
+          <Logo
+            to="/"
+            variant="inline"
+            size="lg"
+            tagline="Customer success, simplified"
+            invert
+          />
 
           {/* Headline + features */}
           <div className="max-w-lg">
@@ -115,11 +112,8 @@ export default function AuthShell({ children, title, subtitle, footer }) {
       <main className="flex-1 flex flex-col items-center justify-center
                        px-4 py-10 sm:px-6 lg:px-12 relative">
         {/* Mobile brand */}
-        <div className="lg:hidden absolute top-6 left-6 flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-brand-gradient text-white flex items-center justify-center font-bold shadow-glow-sm">
-            C
-          </div>
-          <span className="font-semibold text-gray-900 dark:text-slate-100 tracking-tight">Modern CRM</span>
+        <div className="lg:hidden absolute top-6 left-6">
+          <Logo to="/" variant="inline" size="md" />
         </div>
 
         {/* Theme toggle, top-right of form panel */}

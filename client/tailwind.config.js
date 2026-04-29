@@ -45,9 +45,12 @@ export default {
         'inset-top': 'inset 0 1px 0 0 rgba(255,255,255,0.15)',
       },
       backgroundImage: {
-        'brand-gradient':  'linear-gradient(180deg, #7a73ff 0%, #635bff 100%)',
-        'brand-gradient-r':'linear-gradient(135deg, #635bff 0%, #8b6cf5 100%)',
-        'page-gradient':   'linear-gradient(180deg, #f6f9fc 0%, #ffffff 280px)',
+        // Brand-mark gradient: violet → indigo, mirroring the Logo so every
+        // gradient surface in the app (avatars, CTAs, dashboard accents)
+        // reads as the same identity.
+        'brand-gradient':   'linear-gradient(180deg, #8b5cf6 0%, #6366f1 100%)',
+        'brand-gradient-r': 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+        'page-gradient':    'linear-gradient(180deg, #f6f9fc 0%, #ffffff 280px)',
         'page-gradient-dark': 'linear-gradient(180deg, #0a0a14 0%, #13131e 320px)',
       },
       fontFamily: {
