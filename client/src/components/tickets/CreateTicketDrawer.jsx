@@ -38,6 +38,7 @@ const EMPTY_FORM = {
   pipeline_stage_id: '',
   description: '',
   source: '',
+  ticket_type: 'incident',         // ITIL: incident (something broken) | request (something wanted)
   assigned_engineer_id: '',
   project_manager_id: '',          // override
   priority: 'medium',
@@ -148,6 +149,7 @@ export default function CreateTicketDrawer({ open, onClose, onCreated, defaultPr
         subject:               form.subject.trim(),
         description:           form.description.trim(),
         priority:              form.priority,
+        ticket_type:           form.ticket_type,
         pipeline_id:           Number(form.pipeline_id),
         pipeline_stage_id:     Number(form.pipeline_stage_id),
         source:                form.source,
@@ -311,6 +313,31 @@ export default function CreateTicketDrawer({ open, onClose, onCreated, defaultPr
               value={form.priority}
               onChange={(v) => setForm((f) => ({ ...f, priority: v }))}
             />
+          </Field>
+
+          {/* Ticket type — ITIL classification (incident vs request) */}
+          <Field label="Ticket type"
+                 hint="Incident: something is broken. Request: someone wants something.">
+            <div className="flex gap-2">
+              {[
+                { value: 'incident', label: 'Incident', tone: 'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:ring-rose-800',
+                  activeTone: 'bg-rose-600 text-white ring-rose-600' },
+                { value: 'request',  label: 'Request',  tone: 'bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:ring-sky-800',
+                  activeTone: 'bg-sky-600 text-white ring-sky-600' },
+              ].map((o) => {
+                const active = form.ticket_type === o.value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, ticket_type: o.value }))}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium ring-1 transition ${active ? o.activeTone : o.tone + ' hover:brightness-95'}`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
           </Field>
 
           {/* ---------- Associations ---------- */}

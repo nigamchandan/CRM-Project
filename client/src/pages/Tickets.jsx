@@ -26,6 +26,20 @@ const PRIORITY_DOT   = {
   medium:   'bg-amber-400', low: 'bg-gray-400',
 };
 
+const TICKET_TYPE_STYLE = {
+  incident: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:ring-rose-800',
+  request:  'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:ring-sky-800',
+};
+function TicketTypeBadge({ type }) {
+  const t = type || 'incident';
+  const cls = TICKET_TYPE_STYLE[t] || TICKET_TYPE_STYLE.incident;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 capitalize ${cls}`}>
+      {t}
+    </span>
+  );
+}
+
 const SAVED_VIEWS = [
   { id: 'all',        label: 'All tickets'      },
   { id: 'mine_open',  label: 'My open tickets'  },
@@ -95,6 +109,10 @@ const COLUMNS = [
     ),
   },
   {
+    id: 'ticket_type', label: 'Type', sortKey: null, minW: 100,
+    render: (t) => <TicketTypeBadge type={t.ticket_type} />,
+  },
+  {
     id: 'project', label: 'Project', sortKey: 'project', minW: 140,
     render: (t) => <span className="text-gray-700 dark:text-slate-300">{t.project_name || '—'}</span>,
   },
@@ -160,7 +178,7 @@ const COLUMNS = [
   },
 ];
 const COL_BY_ID = Object.fromEntries(COLUMNS.map((c) => [c.id, c]));
-const DEFAULT_ORDER  = ['subject', 'pipeline', 'stage', 'owner', 'priority', 'project', 'created'];
+const DEFAULT_ORDER  = ['subject', 'pipeline', 'stage', 'owner', 'priority', 'ticket_type', 'project', 'created'];
 const DEFAULT_HIDDEN = ['id', 'updated', 'close_date', 'sla', 'case_age', 'reporter'];
 
 const LS_ORDER = 'crm.tickets.cols.order';
@@ -256,6 +274,7 @@ export default function Tickets() {
   const [pipelineId, setPipelineId]     = useState('');
   const [ownerId, setOwnerId]           = useState('');
   const [priority, setPriority]         = useState('');
+  const [ticketType, setTicketType]     = useState('');
   const [createdRange, setCreatedRange] = useState('');
   const [updatedRange, setUpdatedRange] = useState('');
 
@@ -329,6 +348,7 @@ export default function Tickets() {
     if (pipelineId) params.pipeline_id = pipelineId;
     if (ownerId)    params.engineer_id = ownerId;
     if (priority)   params.priority    = priority;
+    if (ticketType) params.ticket_type = ticketType;
 
     const c = dateRangeToParams(createdRange);
     if (c?.after)  params.created_after  = c.after;
@@ -370,7 +390,7 @@ export default function Tickets() {
     if (view === 'unassigned') { params.unassigned = true; }
     if (view === 'closed')     { params.status = 'closed'; }
     return params;
-  }, [search, page, pipelineId, ownerId, priority, view, createdRange, updatedRange, advFilters, sort, activeQuick, quickValues]);
+  }, [search, page, pipelineId, ownerId, priority, ticketType, view, createdRange, updatedRange, advFilters, sort, activeQuick, quickValues]);
 
   /* ---------- load ---------- */
   const load = () => {
@@ -434,14 +454,14 @@ export default function Tickets() {
 
   const quickFilterCount = activeQuick.reduce((n, id) => n + (quickValues[id] ? 1 : 0), 0);
   const activeFilterCount =
-    (pipelineId ? 1 : 0) + (ownerId ? 1 : 0) + (priority ? 1 : 0) +
+    (pipelineId ? 1 : 0) + (ownerId ? 1 : 0) + (priority ? 1 : 0) + (ticketType ? 1 : 0) +
     (createdRange ? 1 : 0) + (updatedRange ? 1 : 0) +
     (advFilters.status ? 1 : 0) + (advFilters.source ? 1 : 0) + (advFilters.project_id ? 1 : 0) +
     (advFilters.escalated ? 1 : 0) + (advFilters.has_sla_breach ? 1 : 0) +
     quickFilterCount;
 
   const clearAll = () => {
-    setPipelineId(''); setOwnerId(''); setPriority('');
+    setPipelineId(''); setOwnerId(''); setPriority(''); setTicketType('');
     setCreatedRange(''); setUpdatedRange('');
     setAdvFilters({ status: '', source: '', project_id: '', escalated: false, has_sla_breach: false });
     setActiveQuick([]);
@@ -530,6 +550,10 @@ export default function Tickets() {
             { value: 'high', label: 'High' },
             { value: 'medium', label: 'Medium' },
             { value: 'low', label: 'Low' }]} />
+        <FilterChip label="Type" value={ticketType} onChange={(v) => { setTicketType(v); setPage(1); }}
+          options={[{ value: '', label: 'Any type' },
+            { value: 'incident', label: 'Incident' },
+            { value: 'request',  label: 'Request'  }]} />
 
         {/* User-added quick filters render inline as removable chips */}
         {activeQuick.map((id) => {
@@ -1079,6 +1103,7 @@ function GridView({ data, setStage }) {
               <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[t.priority] || 'bg-gray-400'}`} />
               {PRIORITY_LABEL[t.priority] || t.priority}
             </span>
+            <TicketTypeBadge type={t.ticket_type} />
           </div>
           <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-0.5">
             <div>Owner: <span className="text-gray-700 dark:text-slate-300">{t.engineer_name || 'Unassigned'}</span></div>

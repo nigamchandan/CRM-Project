@@ -93,6 +93,16 @@ function SummaryColumn({ ticket, users, stages, onChange }) {
       onChange();
     } catch { toast.error('Assignment failed'); }
   };
+  /** Generic single-field PATCH used by light-touch dropdowns in this column. */
+  const updateField = async (field, value) => {
+    try {
+      await ticketsService.update(ticket.id, { [field]: value });
+      toast.success('Updated');
+      onChange();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Update failed');
+    }
+  };
 
   const stageColor = ticket.stage_color || '#6b7280';
 
@@ -241,6 +251,16 @@ function SummaryColumn({ ticket, users, stages, onChange }) {
           <Field label="Priority">
             <Badge value={ticket.priority} />
           </Field>
+          <Field label="Type">
+            <select
+              className="input !py-1.5 !text-xs"
+              value={ticket.ticket_type || 'incident'}
+              onChange={(e) => updateField('ticket_type', e.target.value)}
+            >
+              <option value="incident">Incident</option>
+              <option value="request">Request</option>
+            </select>
+          </Field>
         </div>
       </Section>
 
@@ -349,6 +369,7 @@ function OverviewTab({ ticket }) {
         <FactCard label="Pipeline" value={ticket.pipeline_name} />
         <FactCard label="Stage"    value={ticket.stage_name} dot={ticket.stage_color} />
         <FactCard label="Priority" value={<Badge value={ticket.priority} />} />
+        <FactCard label="Type"     value={<TypeBadge value={ticket.ticket_type} />} />
         <FactCard label="Source"   value={ticket.source} />
         <FactCard label="Project"  value={ticket.project_name} sub={ticket.project_code} />
         <FactCard label="Location" value={ticket.location_name} sub={ticket.location_code} />
@@ -360,6 +381,22 @@ function OverviewTab({ ticket }) {
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Tiny incident/request pill — same visual language as the Tickets list so the
+ * classification is instantly recognisable as the user moves between screens.
+ */
+function TypeBadge({ value }) {
+  const v = value || 'incident';
+  const tone = v === 'request'
+    ? 'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:ring-sky-800'
+    : 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:ring-rose-800';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 capitalize ${tone}`}>
+      {v}
+    </span>
   );
 }
 

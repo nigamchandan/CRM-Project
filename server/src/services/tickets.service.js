@@ -202,6 +202,7 @@ exports.list = async ({
   page = 1, limit = 20, status, priority, search = '',
   assigned_to, project_id, location_id, team_id,
   engineer_id, manager_id, source,
+  ticket_type,
   pipeline_id, pipeline_stage_id,
   sort = 'newest',
   // Date range filters (ISO strings or YYYY-MM-DD)
@@ -229,6 +230,7 @@ exports.list = async ({
   if (engineer_id)       { params.push(Number(engineer_id));       where += ` AND t.assigned_engineer_id = $${params.length}`; }
   if (manager_id)        { params.push(Number(manager_id));        where += ` AND t.reporting_manager_id = $${params.length}`; }
   if (source)            { params.push(source);                    where += ` AND t.source = $${params.length}`; }
+  if (ticket_type)       { params.push(ticket_type);                where += ` AND t.ticket_type = $${params.length}`; }
   if (pipeline_id)       { params.push(Number(pipeline_id));       where += ` AND t.pipeline_id = $${params.length}`; }
   if (pipeline_stage_id) { params.push(Number(pipeline_stage_id)); where += ` AND t.pipeline_stage_id = $${params.length}`; }
   // Ticket-number quick filter — accepts either the friendly TKT-xxxxx string
@@ -331,6 +333,7 @@ exports.create = async (body) => {
   const {
     subject, description,
     status, priority = 'medium',
+    ticket_type = 'incident',                        // ITIL: incident | request
     project_id, source, contact_id,
     reporter_name, reporter_email, reporter_phone,
     location_id: explicitLocation, team_id: explicitTeam,
@@ -387,23 +390,23 @@ exports.create = async (body) => {
 
   const { rows } = await query(
     `INSERT INTO tickets
-        (subject, description, status, priority,
+        (subject, description, status, priority, ticket_type,
          pipeline_id, pipeline_stage_id,
          project_id, project_manager_id, location_id, team_id,
          assigned_engineer_id, reporting_manager_id,
          assigned_to,                                                 -- mirrors engineer for back-compat
          source, reporter_name, reporter_email, reporter_phone,
          contact_id, created_by, sla_due_at)
-     VALUES ($1,$2,$3,$4,
-             $5,$6,
-             $7,$8,$9,$10,
-             $11,$12,
-             $11,
-             $13,$14,$15,$16,
-             $17,$18,$19)
+     VALUES ($1,$2,$3,$4,$5,
+             $6,$7,
+             $8,$9,$10,$11,
+             $12,$13,
+             $12,
+             $14,$15,$16,$17,
+             $18,$19,$20)
      RETURNING id`,
     [
-      subject, description, resolvedStatus, priority,
+      subject, description, resolvedStatus, priority, ticket_type,
       pipeline_id, pipeline_stage_id,
       project_id || null, project_manager_id || null, location_id, team_id,
       assigned_engineer_id || null, manager_id,
@@ -420,6 +423,7 @@ exports.create = async (body) => {
 exports.update = async (id, body) => {
   const {
     subject, description, priority,
+    ticket_type,
     project_id, source,
     reporter_name, reporter_email, reporter_phone,
     location_id, team_id,
@@ -441,25 +445,26 @@ exports.update = async (id, body) => {
        subject              = COALESCE($2,subject),
        description          = COALESCE($3,description),
        priority             = COALESCE($4,priority),
-       project_id           = COALESCE($5,project_id),
-       source               = COALESCE($6,source),
-       reporter_name        = COALESCE($7,reporter_name),
-       reporter_email       = COALESCE($8,reporter_email),
-       reporter_phone       = COALESCE($9,reporter_phone),
-       location_id          = COALESCE($10,location_id),
-       team_id              = COALESCE($11,team_id),
-       assigned_engineer_id = COALESCE($12,assigned_engineer_id),
-       reporting_manager_id = COALESCE($13,reporting_manager_id),
-       assigned_to          = COALESCE($12,assigned_to),
-       project_manager_id   = COALESCE($14,project_manager_id),
-       pipeline_id          = COALESCE($15,pipeline_id),
-       pipeline_stage_id    = COALESCE($16,pipeline_stage_id),
-       contact_id           = COALESCE($17,contact_id),
-       sla_due_at           = COALESCE($18,sla_due_at),
+       ticket_type          = COALESCE($5,ticket_type),
+       project_id           = COALESCE($6,project_id),
+       source               = COALESCE($7,source),
+       reporter_name        = COALESCE($8,reporter_name),
+       reporter_email       = COALESCE($9,reporter_email),
+       reporter_phone       = COALESCE($10,reporter_phone),
+       location_id          = COALESCE($11,location_id),
+       team_id              = COALESCE($12,team_id),
+       assigned_engineer_id = COALESCE($13,assigned_engineer_id),
+       reporting_manager_id = COALESCE($14,reporting_manager_id),
+       assigned_to          = COALESCE($13,assigned_to),
+       project_manager_id   = COALESCE($15,project_manager_id),
+       pipeline_id          = COALESCE($16,pipeline_id),
+       pipeline_stage_id    = COALESCE($17,pipeline_stage_id),
+       contact_id           = COALESCE($18,contact_id),
+       sla_due_at           = COALESCE($19,sla_due_at),
        updated_at           = NOW()
      WHERE id = $1 RETURNING id`,
     [
-      id, subject, description, priority,
+      id, subject, description, priority, ticket_type,
       project_id, source,
       reporter_name, reporter_email, reporter_phone,
       location_id, team_id,
