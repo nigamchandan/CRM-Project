@@ -2,9 +2,27 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import Topbar from './Topbar.jsx';
+import CommandPalette from '../palette/CommandPalette.jsx';
+import { usePalette } from '../../context/PaletteContext.jsx';
+import useHotkey from '../../hooks/useHotkey.js';
 
 export default function AppLayout() {
   const [open, setOpen] = useState(false);
+  const { open: paletteOpen, togglePalette, openPalette, triggerCreate } = usePalette();
+
+  // ⌘K / Ctrl+K — open the global command palette from anywhere.
+  // We pass `allowInInputs: true` so the user can also fire it while focused
+  // in a search box (matches Linear / GitHub behaviour).
+  useHotkey('mod+k', togglePalette, { allowInInputs: true });
+
+  // "N" — create a new entity contextual to the current page.  Disabled
+  // while the palette is already open so its own ↑/↓/n typing isn't hijacked.
+  useHotkey('n', () => triggerCreate(), { enabled: !paletteOpen });
+
+  // Forward-slash — focus a quick-search style entry into the palette,
+  // similar to GitHub's '/' shortcut.
+  useHotkey('/', openPalette, { enabled: !paletteOpen });
+
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-slate-950">
       <Sidebar mobileOpen={open} onClose={() => setOpen(false)} />
@@ -24,6 +42,7 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

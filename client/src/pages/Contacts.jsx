@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as contactsService from '../services/contactsService';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { useCreateHandler } from '../context/PaletteContext.jsx';
 
 const EMPTY = { name: '', email: '', phone: '', company: '', address: '', tags: [] };
 
@@ -24,7 +25,8 @@ export default function Contacts() {
 
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [search]);
 
-  const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
+  const openNew = useCallback(() => { setEditing(null); setForm(EMPTY); setOpen(true); }, []);
+  useCreateHandler(openNew, 'Create contact');
   const openEdit = (c) => { setEditing(c); setForm({ ...c, tags: c.tags || [] }); setOpen(true); };
 
   const save = async () => {

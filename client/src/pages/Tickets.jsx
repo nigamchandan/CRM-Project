@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as ticketsService from '../services/ticketsService';
 import * as pipelinesService from '../services/ticketPipelinesService';
 import * as usersService from '../services/usersService';
 import * as projectsService from '../services/projectsService';
+import * as workloadService from '../services/workloadService';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import CreateTicketDrawer from '../components/tickets/CreateTicketDrawer.jsx';
+import InlinePriority from '../components/tickets/InlinePriority.jsx';
+import InlineOwner from '../components/tickets/InlineOwner.jsx';
+import ContextMenu from '../components/ui/ContextMenu.jsx';
 import usePopoverDismiss from '../hooks/usePopoverDismiss.js';
 import { useAuth } from '../context/AuthContext';
+import { useCreateHandler } from '../context/PaletteContext.jsx';
 
 /* ----------------------------------------------------------------------------
  *  Tickets list — HubSpot-style:
@@ -93,19 +98,28 @@ const COLUMNS = [
     ),
   },
   {
-    id: 'owner', label: 'Ticket owner', sortKey: 'owner', minW: 140,
-    render: (t) =>
-      t.engineer_name
-        ? <span className="text-gray-700 dark:text-slate-300">{t.engineer_name}</span>
-        : <span className="text-gray-400">Unassigned</span>,
+    id: 'owner', label: 'Ticket owner', sortKey: 'owner', minW: 160,
+    render: (t, ctx) => (
+      <div onClick={ctx.stop}>
+        <InlineOwner
+          ticket={t}
+          users={ctx.users}
+          onChange={ctx.reload}
+          readOnly={!ctx.canAssign}
+        />
+      </div>
+    ),
   },
   {
-    id: 'priority', label: 'Priority', sortKey: 'priority', minW: 110,
-    render: (t) => (
-      <span className="inline-flex items-center gap-1.5 text-xs">
-        <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[t.priority] || 'bg-gray-400'}`} />
-        {PRIORITY_LABEL[t.priority] || t.priority}
-      </span>
+    id: 'priority', label: 'Priority', sortKey: 'priority', minW: 130,
+    render: (t, ctx) => (
+      <div onClick={ctx.stop}>
+        <InlinePriority
+          ticket={t}
+          onChange={ctx.reload}
+          readOnly={!ctx.canEditPriority}
+        />
+      </div>
     ),
   },
   {
@@ -246,7 +260,14 @@ function loadCols() {
 /* ============================================================== component */
 export default function Tickets() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isEngineer = user?.role === 'engineer';
+  const isStaff = ['admin', 'manager'].includes(user?.role);
+  // Engineers can re-prioritise their own work but cannot reassign tickets;
+  // managers/admins can do both.  Server-side `sanitizeUpdateBody` enforces
+  // the same rules, so this just keeps the UI honest.
+  const canAssign       = isStaff;
+  const canEditPriority = isStaff || user?.role === 'engineer';
 
   // Engineers only see "their" tickets — server-side row-level scoping enforces
   // it, but we also tighten the UI: drop "All" / "Unassigned" tabs, default to
@@ -335,6 +356,12 @@ export default function Tickets() {
 
   const [drawer, setDrawer] = useState(false);
 
+  // Register the page-aware "N" hotkey + palette quick action.  Engineers
+  // can't open new tickets, so we leave the handler unset for them and the
+  // shortcut becomes a no-op.
+  const openCreate = useCallback(() => setDrawer(true), []);
+  useCreateHandler(isEngineer ? null : openCreate, 'Create ticket');
+
   /* ---------- bootstrapping ---------- */
   useEffect(() => {
     pipelinesService.listPipelines({ active: true }).then(setPipelines).catch(() => {});
@@ -412,6 +439,113 @@ export default function Tickets() {
       toast.error(e?.response?.data?.message || 'Update failed');
     }
   };
+
+  /* ---------- right-click context menu state ---------- */
+  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, ticket } | null
+  const onRowContext = (ticket) => (e) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, ticket });
+  };
+  const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
+
+  const ctxItems = useMemo(() => {
+    if (!ctxMenu) return [];
+    const t = ctxMenu.ticket;
+    const items = [
+      { id: 'open', icon: 'arrowRight', label: 'Open ticket', onClick: () => navigate(`/tickets/${t.id}`) },
+    ];
+    if (canAssign) {
+      items.push({
+        id: 'suggest',
+        icon: 'sparkles',
+        label: 'Auto-assign least loaded',
+        onClick: async () => {
+          try {
+            const r = await workloadService.suggest({ exclude_id: t.engineer_id || undefined });
+            const u = r?.user;
+            if (!u) { toast.error('No engineer available'); return; }
+            await ticketsService.assign(t.id, { user_id: u.id });
+            toast.success(`Assigned to ${u.name}`);
+            load();
+          } catch (err) {
+            toast.error(err?.response?.data?.message || 'Assign failed');
+          }
+        },
+      });
+      items.push({
+        id: 'unassign',
+        icon: 'x',
+        label: 'Unassign',
+        disabled: !t.engineer_id,
+        onClick: async () => {
+          try {
+            await ticketsService.assign(t.id, { user_id: null });
+            toast.success('Unassigned');
+            load();
+          } catch (err) {
+            toast.error(err?.response?.data?.message || 'Update failed');
+          }
+        },
+      });
+    }
+    if (canEditPriority) {
+      items.push({ divider: true });
+      ['critical','high','medium','low'].forEach((p) => {
+        items.push({
+          id: `prio-${p}`,
+          icon: 'spark',
+          label: `Priority: ${PRIORITY_LABEL[p]}`,
+          disabled: t.priority === p,
+          onClick: async () => {
+            try {
+              await ticketsService.update(t.id, { priority: p });
+              toast.success(`Priority → ${PRIORITY_LABEL[p]}`);
+              load();
+            } catch (err) {
+              toast.error(err?.response?.data?.message || 'Update failed');
+            }
+          },
+        });
+      });
+    }
+    if (isStaff) {
+      items.push({ divider: true });
+      items.push({
+        id: 'escalate',
+        icon: 'trendingUp',
+        label: 'Escalate ticket',
+        onClick: async () => {
+          try {
+            await ticketsService.escalate(t.id);
+            toast.success('Escalated');
+            load();
+          } catch (err) {
+            toast.error(err?.response?.data?.message || 'Escalate failed');
+          }
+        },
+      });
+    }
+    if (user?.role === 'admin') {
+      items.push({ divider: true });
+      items.push({
+        id: 'delete',
+        icon: 'trash',
+        label: 'Delete ticket',
+        tone: 'danger',
+        onClick: async () => {
+          if (!confirm(`Delete ticket "${t.subject}"? This cannot be undone.`)) return;
+          try {
+            await ticketsService.remove(t.id);
+            toast.success('Deleted');
+            load();
+          } catch (err) {
+            toast.error(err?.response?.data?.message || 'Delete failed');
+          }
+        },
+      });
+    }
+    return items;
+  }, [ctxMenu, canAssign, canEditPriority, isStaff, user, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- header click handlers ---------- */
   const onHeaderSort = (col) => {
@@ -701,10 +835,25 @@ export default function Tickets() {
           onHeaderDragOver={onHeaderDragOver}
           onHeaderDrop={onHeaderDrop}
           setStage={setStage}
+          users={users}
+          canAssign={canAssign}
+          canEditPriority={canEditPriority}
+          reload={load}
+          onRowContext={onRowContext}
         />
       ) : (
-        <GridView data={data} setStage={setStage} />
+        <GridView
+          data={data}
+          setStage={setStage}
+          users={users}
+          canAssign={canAssign}
+          canEditPriority={canEditPriority}
+          reload={load}
+          onRowContext={onRowContext}
+        />
       )}
+
+      <ContextMenu at={ctxMenu} onClose={closeCtxMenu} items={ctxItems} />
 
       {/* Pagination */}
       <div className="flex items-center justify-end gap-2 py-4 text-sm text-gray-600 dark:text-slate-400">
@@ -1009,9 +1158,11 @@ function StageChip({ ticket, setStage }) {
 function ListView({
   data, visibleColumns, sort, onHeaderSort,
   onHeaderDragStart, onHeaderDragOver, onHeaderDrop, setStage,
+  users, canAssign, canEditPriority, reload, onRowContext,
 }) {
   const navigate = useNavigate();
   const stop = (e) => e.stopPropagation();
+  const baseCtx = { stop, setStage, users, canAssign, canEditPriority, reload };
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-x-auto">
@@ -1056,6 +1207,7 @@ function ListView({
             <tr
               key={t.id}
               onClick={() => navigate(`/tickets/${t.id}`)}
+              onContextMenu={onRowContext?.(t)}
               className="border-t border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer"
             >
               <td className="px-3 py-2" onClick={stop}>
@@ -1063,7 +1215,7 @@ function ListView({
               </td>
               {visibleColumns.map((col) => (
                 <td key={col.id} className="px-3 py-2 align-top">
-                  {col.render(t, { stop, setStage })}
+                  {col.render(t, baseCtx)}
                 </td>
               ))}
             </tr>
@@ -1075,7 +1227,7 @@ function ListView({
 }
 
 /* ----------------------------------------------------------------------- */
-function GridView({ data, setStage }) {
+function GridView({ data, setStage, users, canAssign, canEditPriority, reload, onRowContext }) {
   const navigate = useNavigate();
   const stop = (e) => e.stopPropagation();
   return (
@@ -1084,6 +1236,7 @@ function GridView({ data, setStage }) {
         <div
           key={t.id}
           onClick={() => navigate(`/tickets/${t.id}`)}
+          onContextMenu={onRowContext?.(t)}
           className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm
                      cursor-pointer hover:border-brand-300 hover:shadow-md transition"
         >
@@ -1099,14 +1252,14 @@ function GridView({ data, setStage }) {
           </div>
           <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={stop}>
             <StageChip ticket={t} setStage={setStage} />
-            <span className="inline-flex items-center gap-1.5 text-xs">
-              <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[t.priority] || 'bg-gray-400'}`} />
-              {PRIORITY_LABEL[t.priority] || t.priority}
-            </span>
+            <InlinePriority ticket={t} onChange={reload} readOnly={!canEditPriority} />
             <TicketTypeBadge type={t.ticket_type} />
           </div>
           <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-0.5">
-            <div>Owner: <span className="text-gray-700 dark:text-slate-300">{t.engineer_name || 'Unassigned'}</span></div>
+            <div className="flex items-center gap-1" onClick={stop}>
+              <span>Owner:</span>
+              <InlineOwner ticket={t} users={users} onChange={reload} readOnly={!canAssign} />
+            </div>
             <div>Project: <span className="text-gray-700 dark:text-slate-300">{t.project_name || '—'}</span></div>
             {t.reporter_name && <div>Reporter: {t.reporter_name}</div>}
           </div>

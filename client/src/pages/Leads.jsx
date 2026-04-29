@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as leadsService from '../services/leadsService';
 import * as usersService from '../services/usersService';
@@ -6,6 +6,7 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import Badge from '../components/ui/Badge.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { useCreateHandler } from '../context/PaletteContext.jsx';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'converted', 'lost'];
 const EMPTY = { name:'', email:'', phone:'', company:'', source:'', status:'new', value:0, assigned_to:'', notes:'' };
@@ -29,7 +30,8 @@ export default function Leads() {
   }, []);
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [search, statusF]);
 
-  const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
+  const openNew = useCallback(() => { setEditing(null); setForm(EMPTY); setOpen(true); }, []);
+  useCreateHandler(openNew, 'Create lead');
   const openEdit = (l) => { setEditing(l); setForm({ ...l, assigned_to: l.assigned_to || '' }); setOpen(true); };
 
   const save = async () => {

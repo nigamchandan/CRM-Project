@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import NotificationBell from '../notifications/NotificationBell.jsx';
 import NextActionsButton from '../notifications/NextActionsButton.jsx';
@@ -6,6 +6,7 @@ import ThemeToggle from './ThemeToggle.jsx';
 import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import usePopoverDismiss from '../../hooks/usePopoverDismiss';
+import { usePalette } from '../../context/PaletteContext.jsx';
 
 export default function Topbar({ onMenu }) {
   const { user, logout } = useAuth();
@@ -13,6 +14,13 @@ export default function Topbar({ onMenu }) {
   const menuRef = useRef(null);
   usePopoverDismiss(menuOpen, menuRef, () => setMenuOpen(false));
   const navigate = useNavigate();
+  const { openPalette } = usePalette();
+  // Show the platform-correct shortcut hint (⌘ on macOS, Ctrl elsewhere).
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || ''));
+  }, []);
 
   return (
     <header
@@ -35,30 +43,32 @@ export default function Topbar({ onMenu }) {
         </span>
       </div>
 
-      {/* Search (desktop) — pill-shaped, premium feel with focus ring */}
+      {/* Search (desktop) — clicking anywhere on the bar opens the global
+          command palette (Cmd/Ctrl-K).  We render it as a button so it never
+          steals focus or fights the palette's own input. */}
       <div className="flex-1 max-w-md mx-auto hidden md:block">
-        <div className="relative">
-          <Icon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400 dark:text-slate-500" />
-          <input
-            type="search"
-            placeholder="Search contacts, leads, deals…"
-            className="w-full pl-10 pr-3 py-2 text-sm rounded-full
-                       bg-gray-100/70 dark:bg-slate-800/60
-                       border border-transparent
-                       text-gray-900 dark:text-slate-100
-                       placeholder:text-gray-500 dark:placeholder:text-slate-500
-                       focus:outline-none focus:bg-white dark:focus:bg-slate-900
-                       focus:border-brand-300 dark:focus:border-brand-500/50
-                       focus:ring-[3px] focus:ring-brand-100 dark:focus:ring-brand-500/20
-                       transition"
-          />
-          <kbd className="hidden lg:inline-flex absolute right-2 top-1/2 -translate-y-1/2
-                          items-center gap-0.5 px-1.5 py-0.5 rounded
+        <button
+          type="button"
+          onClick={openPalette}
+          aria-label="Open search"
+          className="group w-full flex items-center gap-2 pl-3.5 pr-2 py-2 rounded-full
+                     bg-gray-100/70 dark:bg-slate-800/60
+                     border border-transparent
+                     text-gray-500 dark:text-slate-400
+                     hover:bg-white dark:hover:bg-slate-900
+                     hover:border-brand-200 dark:hover:border-brand-500/40
+                     transition"
+        >
+          <Icon name="search" className="w-[18px] h-[18px] text-gray-400 dark:text-slate-500" />
+          <span className="flex-1 text-left text-sm truncate">
+            Search contacts, leads, deals, tickets…
+          </span>
+          <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded
                           text-[10px] font-medium text-gray-400 dark:text-slate-500
                           bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-slate-700">
-            <span className="text-[11px]">⌘</span>K
+            <span className="text-[11px]">{isMac ? '⌘' : 'Ctrl'}</span>K
           </kbd>
-        </div>
+        </button>
       </div>
 
       <div className="flex-1 md:hidden" />

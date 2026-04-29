@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as dealsService from '../services/dealsService';
 import * as contactsService from '../services/contactsService';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Modal from '../components/ui/Modal.jsx';
+import { useCreateHandler } from '../context/PaletteContext.jsx';
 
 const EMPTY = { title:'', value:0, stage_id:'', contact_id:'', expected_close_date:'', notes:'' };
 
@@ -23,6 +24,8 @@ export default function Deals() {
   useEffect(() => { load(); contactsService.list({ limit: 100 }).then(r => setContacts(r.data)); }, []);
 
   const openNew = (stage_id = '') => { setEditing(null); setForm({ ...EMPTY, stage_id }); setOpen(true); };
+  const openNewDefault = useCallback(() => { setEditing(null); setForm(EMPTY); setOpen(true); }, []);
+  useCreateHandler(openNewDefault, 'Create deal');
   const openEdit = (d) => { setEditing(d); setForm({
     ...d,
     stage_id: d.stage_id || '',

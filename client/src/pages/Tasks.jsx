@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as tasksService from '../services/tasksService';
 import * as usersService from '../services/usersService';
@@ -6,6 +6,7 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import Badge from '../components/ui/Badge.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import { useCreateHandler } from '../context/PaletteContext.jsx';
 
 const PRIORITIES = ['low','medium','high'];
 const STATUSES = ['pending','in_progress','completed'];
@@ -26,7 +27,8 @@ export default function Tasks() {
   useEffect(() => { usersService.list({ limit: 100 }).then(r => setUsers(r.data)); }, []);
   useEffect(() => { load(); }, [mine]);
 
-  const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
+  const openNew = useCallback(() => { setEditing(null); setForm(EMPTY); setOpen(true); }, []);
+  useCreateHandler(openNew, 'Create task');
   const openEdit = (t) => { setEditing(t); setForm({
     ...t,
     assigned_to: t.assigned_to || '',
