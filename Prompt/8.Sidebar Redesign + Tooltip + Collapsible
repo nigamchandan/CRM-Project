@@ -1,0 +1,155 @@
+Redesign the entire sidebar navigation system to be modern, adaptive, and enterprise-grade with support for collapsed mode, tooltips, animations, and improved UX.
+
+---
+
+## 1. Sidebar Layout Upgrade
+
+Implement two states:
+
+### Expanded Mode (default)
+- Width: 240px
+- Show icons + labels
+- Section headers (Workspace, Service, Manage)
+
+### Collapsed Mode
+- Width: 72px
+- Show only icons
+- Hide labels
+- Enable tooltip on hover
+
+Add toggle button in topbar:
+- Icon: hamburger/menu
+- Persist state (localStorage)
+
+---
+
+## 2. Sidebar Item Redesign
+
+### Default State
+- Transparent background
+- Text: muted (opacity 70%)
+- Icon: neutral color
+
+### Hover State
+- Background: rgba(139, 92, 246, 0.08)
+- Text: white
+- Icon: #a78bfa
+- Smooth transition (0.2s)
+- Slight scale effect (1.02)
+
+### Active State
+- Background: linear-gradient(90deg, rgba(139,92,246,0.2), rgba(59,130,246,0.15))
+- Border-left: 3px solid #8b5cf6
+- Text: white
+- Icon: #8b5cf6
+- Glow effect: subtle inner shadow
+
+---
+
+## 3. Tooltip System (IMPORTANT)
+
+When sidebar is collapsed:
+
+- On hover over icon:
+  - Show tooltip on right side
+  - Content: menu name (e.g., "Dashboard", "Tickets")
+
+### Tooltip Design:
+- Background: #111827 (dark)
+- Text: white
+- Padding: 6px 10px
+- Border-radius: 6px
+- Font-size: 12px
+- Shadow: soft (0 4px 12px rgba(0,0,0,0.3))
+- Position: right-center of icon
+
+### Behavior:
+- Delay: 150ms
+- Fade-in animation
+- Hide on mouse leave
+
+---
+
+## 4. Section Header Behavior
+
+- In expanded mode:
+  - Show section labels (WORKSPACE, SERVICE, MANAGE)
+  - Small uppercase text
+
+- In collapsed mode:
+  - Hide section labels completely
+
+---
+
+## 5. Micro Interactions
+
+Add smooth animations:
+
+- Hover:
+  - background fade
+  - icon scale (1.05)
+- Click:
+  - slight press effect (scale 0.98)
+- Sidebar toggle:
+  - smooth width transition (0.25s ease)
+
+---
+
+## 6. Icon System Improvement
+
+- Use consistent icon size (20px)
+- Add spacing between icon and text
+- Align icons perfectly
+
+---
+
+## 7. Active Route Detection
+
+- Highlight active page automatically
+- Persist active state after refresh
+
+---
+
+## 8. Responsive Behavior
+
+- On small screens:
+  - Sidebar auto-collapses
+  - Can open as overlay drawer
+
+---
+
+## 9. Code Requirements
+
+- Use reusable SidebarItem component
+- No inline styles
+- Use Tailwind or modular CSS
+- Clean state management (collapsed state)
+
+---
+
+## 10. Example Component Structure
+
+Sidebar
+ ├── SidebarHeader
+ ├── SidebarSection
+ │    ├── SidebarItem
+ │    ├── SidebarItem
+ ├── SidebarFooter
+
+---
+
+## 11. Optional Enhancements (Add if possible)
+
+- Add badge support (e.g., ticket count)
+- Add keyboard navigation (arrow keys)
+- Add tooltip for collapsed mode only
+
+---
+
+## 12. Deliver
+
+- Fully working sidebar
+- Clean reusable components
+- Tooltip system implemented
+- Smooth animations
+- Production-ready UI

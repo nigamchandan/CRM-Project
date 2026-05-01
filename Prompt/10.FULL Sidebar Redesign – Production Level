@@ -1,0 +1,216 @@
+Upgrade the CRM UI to a premium SaaS-level design by fixing:
+
+1. Sidebar active state (purple glow + left border)
+2. Chart tooltip visibility issue (critical)
+3. Overall visual polish consistency
+
+---
+
+# ✅ PART 1 — SIDEBAR (FINAL PREMIUM VERSION)
+
+## Remove old active style
+- Remove white/grey background completely
+
+## Add new active style
+
+.active {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.18),
+    rgba(99, 102, 241, 0.10)
+  );
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  transform: translateX(2px);
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  height: 28px;
+  width: 3px;
+  background: linear-gradient(180deg, #8b5cf6, #6366f1);
+  border-radius: 2px;
+}
+
+.active span {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.active svg {
+  color: #a78bfa;
+}
+
+---
+
+## Hover state
+
+.menu-item:hover {
+  background: rgba(139,92,246,0.08);
+  transform: translateX(4px);
+}
+
+---
+
+## Smooth animation
+
+transition: all 0.2s ease;
+
+---
+
+# ✅ PART 2 — CHART TOOLTIP FIX (VERY IMPORTANT)
+
+Fix tooltip inside "Leads by Status" donut chart.
+
+## Current issues:
+- Low contrast (dark on dark)
+- No border / depth
+- Bad readability
+- Wrong positioning overlap
+
+---
+
+## Replace tooltip design with:
+
+tooltip: {
+  backgroundColor: "#111827",
+  borderColor: "rgba(139,92,246,0.4)",
+  borderWidth: 1,
+  borderRadius: 8,
+  padding: 10,
+  textStyle: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: 500
+  }
+}
+
+---
+
+## Improve tooltip content format
+
+Instead of:
+"converted : 1"
+
+Use:
+
+formatter: (value, name) => {
+  return `
+    <div style="font-weight:600; margin-bottom:4px;">
+      ${name}
+    </div>
+    <div style="color:#a78bfa;">
+      ${value} leads
+    </div>
+  `;
+}
+
+---
+
+## Add shadow for visibility
+
+extraCssText: "box-shadow: 0 8px 20px rgba(0,0,0,0.4);"
+
+---
+
+## Fix tooltip position (avoid clipping)
+
+tooltip: {
+  position: function (point, params, dom, rect, size) {
+    return [
+      point[0] + 10,
+      point[1] - 40
+    ];
+  }
+}
+
+---
+
+## Add hover emphasis (important UX)
+
+emphasis: {
+  itemStyle: {
+    shadowBlur: 20,
+    shadowColor: "rgba(139,92,246,0.5)"
+  },
+  scale: true
+}
+
+---
+
+# ✅ PART 3 — CHART VISUAL IMPROVEMENT
+
+## Add smooth donut look
+
+radius: ["55%", "75%"]
+
+## Add gap between segments
+
+itemStyle: {
+  borderRadius: 6,
+  borderColor: "#0b1020",
+  borderWidth: 3
+}
+
+---
+
+# ✅ PART 4 — CARD VISUAL DEPTH
+
+Improve chart card:
+
+.card {
+  background: linear-gradient(
+    145deg,
+    rgba(15,23,42,0.9),
+    rgba(2,6,23,0.9)
+  );
+  border: 1px solid rgba(255,255,255,0.05);
+  backdrop-filter: blur(8px);
+}
+
+---
+
+# ✅ PART 5 — MICRO INTERACTIONS
+
+- Hover on cards → slight lift
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+---
+
+# ✅ PART 6 — CONSISTENCY RULES (IMPORTANT)
+
+Apply globally:
+
+- No pure white blocks
+- Use soft gradients
+- Use purple as primary accent (#8b5cf6)
+- Maintain spacing consistency
+- Keep animations subtle (0.2s)
+
+---
+
+# ✅ FINAL RESULT EXPECTATION
+
+After this upgrade:
+
+✔ Sidebar feels premium (not template)  
+✔ Active navigation is clean and modern  
+✔ Chart tooltip is clearly visible and readable  
+✔ UI feels like a real SaaS product  
+✔ Better than HubSpot in visual clarity  
+
+---
+
+# DELIVER
+
+- Updated sidebar styles
+- Updated chart config
+- Tooltip redesign
+- No breaking changes
+- Clean reusable components

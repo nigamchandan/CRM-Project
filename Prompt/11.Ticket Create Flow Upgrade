@@ -1,0 +1,269 @@
+Redesign the Ticket Creation flow into a smart, guided, enterprise-ready system.
+
+Focus:
+- Speed (create ticket in <10 sec)
+- Auto intelligence
+- Multi-location support
+- Engineer/Manager hierarchy
+- SLA awareness
+
+---
+
+# ✅ 1. STEP-BASED FLOW (IMPORTANT)
+
+Convert form into 3 steps:
+
+Step 1 → Basic Info  
+Step 2 → Assignment & Context  
+Step 3 → SLA & Confirmation  
+
+Add progress bar at top.
+
+---
+
+# ✅ 2. STEP 1 — SMART BASIC INFO
+
+Fields:
+
+## Title (auto-suggest)
+- User types → AI suggestions appear
+Example:
+"Printer not working at Chennai site"
+→ Suggest:
+- Printer issue
+- Hardware failure
+- Network print issue
+
+---
+
+## Category (Auto-detected)
+
+Auto-detect based on title:
+
+- Network
+- Hardware
+- Application
+- Security
+
+Allow override.
+
+---
+
+## Priority (AUTO)
+
+Auto-set based on keywords:
+
+- "down", "not working" → High
+- "slow", "delay" → Medium
+
+Show badge:
+
+"Suggested: High Priority"
+
+---
+
+## Description (Guided)
+
+Placeholder:
+
+"Describe issue clearly (what, where, impact)"
+
+Add quick templates:
+
+- System down
+- Performance issue
+- Hardware failure
+
+---
+
+# ✅ 3. STEP 2 — LOCATION + ASSIGNMENT (CORE FEATURE)
+
+## Site Selection (IMPORTANT)
+
+Dropdown:
+
+- Chennai – Plant A
+- Mumbai – POP
+- Delhi – HQ
+
+---
+
+## Auto Assignment Logic
+
+Based on site:
+
+- Auto assign Engineer
+- Auto assign Manager
+
+Example:
+
+Chennai → Engineer: Nigam  
+Manager: Arjun  
+
+Allow override.
+
+---
+
+## Show hierarchy visually:
+
+Site → Engineer → Manager
+
+---
+
+## Add "Escalation toggle"
+
+[ ] Escalate to Manager immediately
+
+---
+
+# ✅ 4. STEP 3 — SLA + TIMELINE
+
+## SLA Auto Calculation
+
+Based on priority:
+
+- High → 4h
+- Medium → 24h
+- Low → 72h
+
+Show visually:
+
+"SLA Deadline: Today 6:30 PM"
+
+---
+
+## Add Countdown Timer
+
+Live ticking timer (important UX)
+
+---
+
+## Add "Impact Level"
+
+- Single user
+- Team
+- Entire site
+
+---
+
+# ✅ 5. FILE UPLOAD (IMPROVED)
+
+- Drag & drop
+- Show preview
+- Show file size
+
+---
+
+# ✅ 6. FINAL CONFIRMATION SCREEN
+
+Show summary:
+
+- Title
+- Site
+- Assigned Engineer
+- SLA deadline
+- Priority
+
+Button:
+
+"Create Ticket"
+
+---
+
+# ✅ 7. QUICK CREATE (VERY IMPORTANT)
+
+Add floating button:
+
+"Quick Ticket"
+
+Opens mini modal:
+
+- Title
+- Site
+
+Auto fills rest.
+
+---
+
+# ✅ 8. SMART FEATURES (GAME CHANGER)
+
+## Duplicate Detection
+
+If similar ticket exists:
+
+"Similar issue already reported (2 tickets)"
+
+---
+
+## Auto Tags
+
+System auto adds:
+
+- hardware
+- urgent
+- site-chennai
+
+---
+
+## Suggested Actions
+
+After create:
+
+- Assign task
+- Notify team
+- Schedule follow-up
+
+---
+
+# ✅ 9. ROLE-BASED UI
+
+Engineer:
+- Only sees assigned tickets
+
+Manager:
+- Sees site-wide tickets
+
+Admin:
+- Full access
+
+---
+
+# ✅ 10. REAL-TIME FEEDBACK
+
+After create:
+
+Toast:
+
+"Ticket created and assigned to Nigam"
+
+---
+
+# ✅ 11. DESIGN IMPROVEMENTS
+
+- Use card layout (not long form)
+- Add icons for each section
+- Add spacing and grouping
+- Use purple accent (#8b5cf6)
+
+---
+
+# 🎯 FINAL RESULT
+
+After upgrade:
+
+✔ Ticket creation becomes fast  
+✔ Less manual work  
+✔ Auto assignment works  
+✔ SLA visible instantly  
+✔ Perfect for multi-site companies  
+✔ Enterprise-ready UX  
+
+---
+
+# DELIVER
+
+- Step-based ticket form
+- Auto assignment logic
+- SLA system
+- UI components
+- Clean reusable code

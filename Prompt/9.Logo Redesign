@@ -1,0 +1,84 @@
+Redesign the application logo to make it modern, professional, and suitable for a SaaS CRM product.
+
+---
+
+## Goals:
+- Replace generic icon with strong brand identity
+- Match existing dark + gradient UI
+- Look premium and modern
+
+---
+
+## 1. Logo Concept
+
+Design a modern "C" lettermark logo:
+
+- Shape: rounded square container
+- Background: gradient
+  - from: #8b5cf6 (purple)
+  - to: #6366f1 (indigo)
+
+- Add subtle glow:
+  - box-shadow: 0 0 20px rgba(139,92,246,0.4)
+
+---
+
+## 2. Letter Design
+
+- Use bold "C"
+- Color: white
+- Slight inner shadow or glass effect
+- Center aligned
+
+---
+
+## 3. Variants
+
+Create 3 versions:
+
+1. Full logo (icon + "Modern CRM")
+2. Icon only (for sidebar)
+3. Small favicon version
+
+---
+
+## 4. Animation (Optional but recommended)
+
+- On hover:
+  - slight scale (1.05)
+  - glow increase
+- Smooth transition (0.2s)
+
+---
+
+## 5. Implementation
+
+- Create reusable Logo component
+- Use SVG or React component (no image dependency)
+- Make it scalable
+
+---
+
+## 6. Replace Everywhere
+
+- Sidebar top logo
+- Login page branding
+- Browser tab favicon
+- Header section
+
+---
+
+## 7. Branding Consistency
+
+- Use same gradient colors across:
+  - buttons
+  - highlights
+  - active states
+
+---
+
+## Deliver:
+
+- Clean reusable logo component
+- SVG-based scalable design
+- Consistent branding across app

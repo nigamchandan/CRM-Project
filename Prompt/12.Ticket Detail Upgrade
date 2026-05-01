@@ -1,0 +1,153 @@
+STEP-1
+
+Transform the ticket detail page into a real-time incident command center.
+
+---
+
+## Layout
+
+Split into 3 sections:
+
+LEFT:
+- Ticket details
+- Description
+- Attachments
+
+CENTER:
+- Activity timeline (live updates)
+- Chat / comments
+
+RIGHT:
+- SLA timer (countdown)
+- Assigned engineer
+- Priority + status
+- Action buttons
+
+---
+
+## SLA Timer
+
+- Live countdown
+- Color logic:
+  Green → >50% time
+  Yellow → <50%
+  Red → overdue
+
+---
+
+## Activity Timeline
+
+- Show all actions:
+  created, assigned, updated, closed
+- Include user + timestamp
+
+---
+
+## Real-time updates
+
+Use:
+- WebSocket or polling
+
+---
+
+## Chat System
+
+- Internal comments
+- Mention users (@Nigam)
+- Attach files
+
+---
+
+## Action Buttons
+
+- Assign engineer
+- Escalate
+- Change priority
+- Close ticket
+
+---
+
+## UI
+
+- Card-based layout
+- Smooth transitions
+- Highlight active activity
+
+---
+
+## Deliver
+
+- Ticket detail UI
+- Real-time updates
+- Activity timeline system
+
+STEP-2
+
+Build an SLA monitoring and alert system.
+
+---
+
+## Logic
+
+If remaining time:
+
+< 50% → warning  
+< 20% → high alert  
+< 0 → breach  
+
+---
+
+## Actions
+
+- Notify engineer
+- Notify manager
+- Highlight ticket in dashboard
+
+---
+
+## UI
+
+- Show badge:
+  "At Risk"
+  "Breaching Soon"
+
+---
+
+## Optional
+
+Auto escalate to manager
+
+STEP-3
+
+Implement smart ticket assignment based on engineer workload.
+
+---
+
+## Logic
+
+- Count active tickets per engineer
+- Consider priority weight:
+  High = 3
+  Medium = 2
+  Low = 1
+
+---
+
+## Assign to:
+
+Engineer with lowest total load
+
+---
+
+## UI
+
+Show:
+
+"Nigam (12 active)"
+"Arjun (5 active)"
+
+---
+
+## Optional
+
+Allow manual override
